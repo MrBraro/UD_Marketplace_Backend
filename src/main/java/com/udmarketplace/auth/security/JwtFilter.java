@@ -19,16 +19,7 @@ import java.io.IOException;
 /**
  * Filtro JWT que se ejecuta una vez por cada request HTTP.
  *
- * <p>Responsabilidades:
- * <ol>
- *   <li>Extrae el token del header {@code Authorization: Bearer <token>}</li>
- *   <li>Valida la firma y expiración del JWT ({@link JwtUtil#isTokenValid})</li>
- *   <li>Verifica que el token no esté en la blacklist (RF13)</li>
- *   <li>Si todo es válido, establece la autenticación en el {@link SecurityContextHolder}</li>
- * </ol>
- *
- * <p>Si el token es inválido o está en blacklist, el filtro simplemente no establece
- * autenticación y Spring Security retornará 401 automáticamente.
+ * <p>Extrae y valida el token usando correo_usuario como identificador principal.
  */
 @Slf4j
 @Component
@@ -68,8 +59,8 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         // Token válido — establecer autenticación en el contexto de seguridad
-        String username = jwtUtil.extractUsername(token);
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        String correoUsuario = jwtUtil.extractCorreoUsuario(token);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(correoUsuario);
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(

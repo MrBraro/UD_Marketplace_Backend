@@ -4,10 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * Response del endpoint POST /api/auth/login cuando las credenciales son válidas (RF08).
- *
- * <p>Indica al cliente que el primer paso fue exitoso y que debe enviar
- * el código 2FA para completar el proceso de autenticación.
+ * Response del endpoint POST /api/auth/login cuando las credenciales son válidas (Paso 1).
  */
 @Data
 @AllArgsConstructor
@@ -19,8 +16,8 @@ public class LoginStepResponse {
      */
     private String step;
 
-    /** Username del usuario que completó el primer paso. */
-    private String username;
+    /** Correo de usuario que completó el primer paso (correo_usuario). */
+    private String correoUsuario;
 
     /** Mensaje informativo para el cliente. */
     private String message;

@@ -6,25 +6,27 @@ import org.springframework.stereotype.Component;
 
 /**
  * Mapper para convertir entidades {@link User} en DTOs de respuesta.
- *
- * <p>Centraliza la transformación entity → DTO evitando que los controladores
- * o servicios accedan directamente a los campos de la entidad.
- * Garantiza que datos sensibles (password, twoFactorCode) nunca se expongan.
  */
 @Component
 public class UserMapper {
 
     /**
-     * Convierte un {@link User} en un {@link UserInfoResponse}.
+     * Convierte un {@link User} en un {@link UserInfoResponse} alineado al diagrama ER.
      *
      * @param user entidad del usuario
-     * @return DTO seguro para enviar al cliente (sin datos sensibles)
+     * @return DTO seguro con todos los campos especificados en el diagrama ER
      */
     public UserInfoResponse toUserInfoResponse(User user) {
         return new UserInfoResponse(
-                user.getUsername(),
-                user.getEmail(),
-                user.getRole().name()
+                user.getCodigoUsua(),
+                user.getCorreoUsuario(),
+                user.getRolUsua().name(),
+                user.getPrimerNombre(),
+                user.getSegundoNombre(),
+                user.getPrimerApellido(),
+                user.getSegundoApellido(),
+                user.getGenero(),
+                user.getFechaNacimiento()
         );
     }
 }

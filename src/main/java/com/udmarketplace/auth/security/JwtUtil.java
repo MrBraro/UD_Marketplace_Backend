@@ -12,13 +12,12 @@ import java.util.Date;
 /**
  * Utilidad para generación y validación de tokens JWT (RF11, RF13).
  *
- * <p>Usa el algoritmo HS256 con una clave simétrica configurada en
- * {@code application.properties} (app.jwt.secret).
+ * <p>Usa el algoritmo HS256 con una clave simétrica configurada.
  *
  * <p>Claims del JWT:
  * <ul>
- *   <li>{@code sub}  — username del usuario</li>
- *   <li>{@code role} — rol del usuario (ADMIN, SELLER, BUYER)</li>
+ *   <li>{@code sub}  — correoUsuario del usuario (correo_usuario en ER)</li>
+ *   <li>{@code role} — rol del usuario (rol_usua en ER: ADMIN, SELLER, BUYER)</li>
  *   <li>{@code iat}  — timestamp de emisión</li>
  *   <li>{@code exp}  — timestamp de expiración (iat + 24h)</li>
  * </ul>
@@ -35,14 +34,14 @@ public class JwtUtil {
     /**
      * Genera un JWT firmado con HS256.
      *
-     * @param username nombre de usuario a incluir como subject
-     * @param role     rol del usuario a incluir como claim
+     * @param correoUsuario correo del usuario a incluir como subject
+     * @param rolUsua       rol del usuario a incluir como claim
      * @return JWT compacto listo para enviar al cliente
      */
-    public String generateToken(String username, String role) {
+    public String generateToken(String correoUsuario, String rolUsua) {
         return Jwts.builder()
-                .subject(username)
-                .claim("role", role)
+                .subject(correoUsuario)
+                .claim("role", rolUsua)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey())
@@ -50,12 +49,12 @@ public class JwtUtil {
     }
 
     /**
-     * Extrae el username (subject) de un token JWT.
+     * Extrae el correoUsuario (subject) de un token JWT.
      *
      * @param token JWT compacto
-     * @return username almacenado en el subject del token
+     * @return correoUsuario almacenado en el subject del token
      */
-    public String extractUsername(String token) {
+    public String extractCorreoUsuario(String token) {
         return parseClaims(token).getSubject();
     }
 
@@ -71,9 +70,6 @@ public class JwtUtil {
 
     /**
      * Verifica si un token JWT es estructuralmente válido y no está expirado.
-     *
-     * <p>No verifica la blacklist — eso lo hace {@code JwtFilter} consultando
-     * {@code TokenBlacklistService}.
      *
      * @param token JWT compacto
      * @return {@code true} si el token es válido y no expiró

@@ -2,16 +2,22 @@ package com.udmarketplace.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 
 /**
  * Entidad que representa un usuario del sistema.
  *
- * <p>Contiene las credenciales de acceso, el rol para autorización (RF24)
- * y el campo para almacenar temporalmente el código 2FA enviado por email.
- *
- * <p>Decisión de diseño: el campo {@code twoFactorCode} se persiste en la DB
- * como almacenamiento temporal del código generado. Se limpia después de su
- * uso exitoso. En el futuro puede migrarse a Redis con TTL automático.
+ * <p>Mapeada exactamente para cumplir con los atributos y relaciones del
+ * diagrama de Entidad-Relación (ER):
+ * <ul>
+ *   <li>correo_usuario (email / identificador de acceso único)</li>
+ *   <li>password_usua (hash BCrypt de contraseña)</li>
+ *   <li>codigo_usua (clave primaria autonumerada)</li>
+ *   <li>nombre_usua (primer_nombre, segundo_nombre, primer_apellido, segundo_apellido)</li>
+ *   <li>rol_usua (rol del usuario para autorización)</li>
+ *   <li>fecha_nacimiento (fecha de nacimiento del usuario)</li>
+ *   <li>genero (género del usuario)</li>
+ * </ul>
  */
 @Entity
 @Table(name = "users")
@@ -23,30 +29,41 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "codigo_usua")
+    private Long codigoUsua;
 
-    /** Identificador único de acceso del usuario (RF08). */
-    @Column(unique = true, nullable = false, length = 100)
-    private String username;
+    @Column(name = "primer_nombre", nullable = false, length = 50)
+    private String primerNombre;
 
-    /** Dirección de email para envío del código 2FA (RF11). */
-    @Column(nullable = false, length = 150)
-    private String email;
+    @Column(name = "segundo_nombre", length = 50)
+    private String segundoNombre;
 
-    /** Contraseña almacenada como hash BCrypt (RF08). */
-    @Column(nullable = false)
-    private String password;
+    @Column(name = "primer_apellido", nullable = false, length = 50)
+    private String primerApellido;
 
-    /** Rol del usuario para autorización por rutas (RF24). */
+    @Column(name = "segundo_apellido", length = 50)
+    private String segundoApellido;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Role role;
+    @Column(name = "rol_usua", nullable = false, length = 20)
+    private Role rolUsua;
+
+    @Column(name = "fecha_nacimiento", nullable = false)
+    private LocalDate fechaNacimiento;
+
+    @Column(name = "genero", nullable = false, length = 20)
+    private String genero;
+
+    @Column(name = "correo_usuario", unique = true, nullable = false, length = 150)
+    private String correoUsuario;
+
+    @Column(name = "password_usua", nullable = false)
+    private String passwordUsua;
 
     /**
      * Código 2FA generado y enviado al email del usuario.
-     * Se establece al hacer login con credenciales válidas.
-     * Se elimina (null) tras verificación exitosa.
+     * Mantenido en persistencia para soportar el flujo de autenticación en dos pasos.
      */
-    @Column(length = 6)
+    @Column(name = "two_factor_code", length = 6)
     private String twoFactorCode;
 }

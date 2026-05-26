@@ -9,21 +9,16 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 /**
- * Carga datos iniciales (seed) al arrancar la aplicación.
- *
- * <p>Crea usuarios de prueba para los tres roles disponibles solo si la
- * tabla de usuarios está vacía. Esto evita duplicados en reinicios.
- *
- * <p>Decisión de diseño: los usuarios se crean aquí temporalmente para permitir
- * pruebas del flujo de autenticación y autorización. El registro de usuarios
- * será implementado por el equipo correspondiente en una iteración posterior.
+ * Carga datos iniciales (seed) al arrancar la aplicación alineados al diagrama ER.
  *
  * <p><strong>Credenciales de prueba:</strong>
  * <pre>
- *   ADMIN  → username: admin    | password: Admin123!    | email: admin@udmarketplace.com
- *   SELLER → username: seller1  | password: Seller123!   | email: seller1@udmarketplace.com
- *   BUYER  → username: buyer1   | password: Buyer123!    | email: buyer1@udmarketplace.com
+ *   ADMIN  → Correo: admin@udmarketplace.com    | Password: Admin123!
+ *   SELLER → Correo: seller1@udmarketplace.com  | Password: Seller123!
+ *   BUYER  → Correo: buyer1@udmarketplace.com   | Password: Buyer123!
  * </pre>
  */
 @Slf4j
@@ -41,21 +36,37 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        createUser("admin",   "admin@udmarketplace.com",   "Admin123!",   Role.ADMIN);
-        createUser("seller1", "seller1@udmarketplace.com", "Seller123!",  Role.SELLER);
-        createUser("buyer1",  "buyer1@udmarketplace.com",  "Buyer123!",   Role.BUYER);
+        createUser("admin@udmarketplace.com", "Admin123!", Role.ADMIN, 
+                "Carlos", "Augusto", "Pérez", "Gómez", 
+                LocalDate.of(1985, 5, 15), "Masculino");
 
-        log.info("DataSeeder: 3 usuarios de prueba creados (admin, seller1, buyer1)");
+        createUser("seller1@udmarketplace.com", "Seller123!", Role.SELLER, 
+                "María", "Isabel", "Rodríguez", "Sánchez", 
+                LocalDate.of(1990, 8, 22), "Femenino");
+
+        createUser("buyer1@udmarketplace.com", "Buyer123!", Role.BUYER, 
+                "Juan", null, "García", "Martínez", 
+                LocalDate.of(1995, 12, 10), "Masculino");
+
+        log.info("DataSeeder: 3 usuarios de prueba creados (admin@udmarketplace.com, seller1@udmarketplace.com, buyer1@udmarketplace.com)");
     }
 
-    private void createUser(String username, String email, String rawPassword, Role role) {
+    private void createUser(String correoUsuario, String rawPassword, Role role,
+                            String primerNombre, String segundoNombre,
+                            String primerApellido, String segundoApellido,
+                            LocalDate fechaNacimiento, String genero) {
         User user = User.builder()
-                .username(username)
-                .email(email)
-                .password(passwordEncoder.encode(rawPassword))
-                .role(role)
+                .correoUsuario(correoUsuario)
+                .passwordUsua(passwordEncoder.encode(rawPassword))
+                .rolUsua(role)
+                .primerNombre(primerNombre)
+                .segundoNombre(segundoNombre)
+                .primerApellido(primerApellido)
+                .segundoApellido(segundoApellido)
+                .fechaNacimiento(fechaNacimiento)
+                .genero(genero)
                 .build();
         userRepository.save(user);
-        log.debug("DataSeeder: usuario '{}' creado con rol {}", username, role);
+        log.debug("DataSeeder: usuario '{}' creado con rol {}", correoUsuario, role);
     }
 }

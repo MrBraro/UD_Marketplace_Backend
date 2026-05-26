@@ -13,9 +13,7 @@ import java.security.SecureRandom;
 /**
  * Implementación del servicio de autenticación en dos factores (RF11).
  *
- * <p>Genera un código numérico de 6 dígitos usando {@link SecureRandom}
- * (criptográficamente seguro), lo persiste en el campo {@code twoFactorCode}
- * del usuario y delega el envío al {@link EmailService}.
+ * <p>Alineado al diagrama ER: utiliza correoUsuario para enviar el código 2FA.
  */
 @Slf4j
 @Service
@@ -35,8 +33,8 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         user.setTwoFactorCode(code);
         userRepository.save(user);
 
-        emailService.sendTwoFactorCode(user.getEmail(), code);
-        log.debug("Código 2FA generado y enviado para usuario: {}", user.getUsername());
+        emailService.sendTwoFactorCode(user.getCorreoUsuario(), code);
+        log.debug("Código 2FA generado y enviado para usuario: {}", user.getCorreoUsuario());
     }
 
     @Override
@@ -47,7 +45,6 @@ public class TwoFactorServiceImpl implements TwoFactorService {
 
     /**
      * Genera un código numérico de 6 dígitos con padding de ceros.
-     * Ejemplo: 000123, 987654.
      */
     private String generateSixDigitCode() {
         int code = secureRandom.nextInt(1_000_000);

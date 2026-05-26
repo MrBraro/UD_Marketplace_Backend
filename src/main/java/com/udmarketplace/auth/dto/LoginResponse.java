@@ -4,10 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * Response del endpoint POST /api/auth/verifyTwoFactor cuando el código 2FA es válido (RF11).
- *
- * <p>Contiene el JWT de sesión que el cliente debe incluir en el header
- * {@code Authorization: Bearer <token>} para todas las solicitudes protegidas.
+ * Response del endpoint POST /api/auth/verifyTwoFactor cuando el código 2FA es válido (Paso 2).
  */
 @Data
 @AllArgsConstructor
@@ -16,15 +13,12 @@ public class LoginResponse {
     /** JWT de sesión con duración de 24 horas. */
     private String token;
 
-    /** Username del usuario autenticado. */
-    private String username;
+    /** Correo de usuario autenticado (correo_usuario). */
+    private String correoUsuario;
 
-    /** Rol del usuario (ADMIN, SELLER, BUYER). */
-    private String role;
+    /** Rol del usuario (rol_usua: ADMIN, SELLER, BUYER). */
+    private String rolUsua;
 
-    /**
-     * Tipo de token. Siempre {@code "Bearer"}.
-     * El cliente debe construir el header como: {@code Authorization: Bearer <token>}.
-     */
+    /** Tipo de token. Siempre {@code "Bearer"}. */
     private String tokenType;
 }

@@ -1,6 +1,6 @@
-# Contrato de la API de Autenticación y Autorización (JWT + 2FA)
+# Contrato de la API de Autenticación y Autorización (Alineado con Diagrama ER)
 
-Este documento define de forma precisa los contratos de comunicación (endpoints, métodos, payloads, headers y códigos de respuesta HTTP) expuestos por el backend de autenticación de **UD Marketplace**.
+Este documento define de forma precisa los contratos de comunicación (endpoints, métodos, payloads, cabeceras y códigos de respuesta HTTP) expuestos por el backend de autenticación de **UD Marketplace**, alineados al diagrama de Entidad-Relación (ER).
 
 ---
 
@@ -10,11 +10,11 @@ El proceso de inicio de sesión se realiza en dos etapas para garantizar la máx
 
 ```
 Paso 1: POST /api/auth/login 
-  Valida usuario y contraseña (RF08).
+  Valida correo_usuario y password_usua (RF08).
   Si son correctas, genera un código 2FA de 6 dígitos enviado por email y responde: TWO_FACTOR_REQUIRED.
 
 Paso 2: POST /api/auth/verifyTwoFactor
-  Recibe el username y el código de 6 dígitos (RF11).
+  Recibe el correo_usuario y el código de 6 dígitos (RF11).
   Si el código es correcto, emite el token JWT para uso en cabeceras HTTP.
 ```
 
@@ -33,8 +33,8 @@ Valida las credenciales básicas y prepara el segundo factor.
 - **Cuerpo del Request (JSON):**
   ```json
   {
-    "username": "admin",
-    "password": "Admin123!"
+    "correoUsuario": "admin@udmarketplace.com",
+    "passwordUsua": "Admin123!"
   }
   ```
 - **Respuestas:**
@@ -42,7 +42,7 @@ Valida las credenciales básicas y prepara el segundo factor.
     ```json
     {
       "step": "TWO_FACTOR_REQUIRED",
-      "username": "admin",
+      "correoUsuario": "admin@udmarketplace.com",
       "message": "Se ha enviado un código de verificación a tu email registrado"
     }
     ```
@@ -61,7 +61,7 @@ Valida las credenciales básicas y prepara el segundo factor.
     ```json
     {
       "status": 400,
-      "message": "El nombre de usuario es obligatorio",
+      "message": "El correo de usuario es obligatorio",
       "timestamp": "2026-05-26T17:00:00"
     }
     ```
@@ -77,21 +77,21 @@ Valida el código de un solo uso recibido y emite el JWT firmado (RF11).
 - **Cuerpo del Request (JSON):**
   ```json
   {
-    "username": "admin",
-    "twoFactorCode": "123456"
+    "correoUsuario": "admin@udmarketplace.com",
+    "twoFactorCode": "403354"
   }
   ```
 - **Respuestas:**
   - **`200 OK` (Código correcto, sesión iniciada):**
     ```json
     {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "username": "admin",
-      "role": "ADMIN",
+      "token": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImlhdCI...",
+      "correoUsuario": "admin@udmarketplace.com",
+      "rolUsua": "ADMIN",
       "tokenType": "Bearer"
     }
     ```
-    *El token contiene los claims: sub (username) y role (rol del usuario) con una expiración de 24 horas.*
+    *El token contiene los claims: sub (correoUsuario) y role (rolUsua) con una expiración de 24 horas.*
 
   - **`401 Unauthorized` (Código incorrecto o expirado - RF11):**
     ```json
@@ -134,7 +134,7 @@ Procesa la solicitud de cierre de sesión explícito agregando el token a la bla
 ---
 
 ### 4. Obtener Información de Usuario Autenticado
-Retorna los datos del usuario autenticado en base al token JWT enviado.
+Retorna los datos del usuario autenticado en base al token JWT enviado, mapeando todos los campos requeridos en el diagrama ER.
 
 - **Método:** `GET`
 - **Ruta:** `/api/auth/me`
@@ -142,20 +142,18 @@ Retorna los datos del usuario autenticado en base al token JWT enviado.
   - `Authorization: Bearer <token>`
 - **Cuerpo del Request:** Vacío.
 - **Respuestas:**
-  - **`200 OK` (Retorno de información):**
+  - **`200 OK` (Retorno de información completo - ER mapeado):**
     ```json
     {
-      "username": "admin",
-      "email": "admin@udmarketplace.com",
-      "role": "ADMIN"
-    }
-    ```
-  - **`401 Unauthorized` (Token ausente o inválido):**
-    ```json
-    {
-      "status": 401,
-      "message": "No autenticado: token ausente o inválido",
-      "timestamp": "2026-05-26T17:12:00"
+      "codigoUsua": 1,
+      "correoUsuario": "admin@udmarketplace.com",
+      "rolUsua": "ADMIN",
+      "primerNombre": "Carlos",
+      "segundoNombre": "Augusto",
+      "primerApellido": "Pérez",
+      "segundoApellido": "Gómez",
+      "genero": "Masculino",
+      "fechaNacimiento": "1985-05-15"
     }
     ```
 
@@ -194,22 +192,14 @@ Endpoints restringidos a roles específicos del negocio: `ADMIN`, `SELLER` o `BU
       "timestamp": "2026-05-26T17:15:00"
     }
     ```
-  - **`401 Unauthorized` (Token ausente o inválido):**
-    ```json
-    {
-      "status": 401,
-      "message": "No autenticado: token ausente o inválido",
-      "timestamp": "2026-05-26T17:15:00"
-    }
-    ```
 
 ---
 
 ## 🧪 Usuarios de Prueba (Seed Data)
 Cargados automáticamente al arrancar la aplicación para pruebas:
 
-| Username | Email | Contraseña | Rol |
-|---|---|---|---|
-| `admin` | `admin@udmarketplace.com` | `Admin123!` | `ADMIN` |
-| `seller1` | `seller1@udmarketplace.com` | `Seller123!` | `SELLER` |
-| `buyer1` | `buyer1@udmarketplace.com` | `Buyer123!` | `BUYER` |
+| CorreoUsuario | Contraseña | Rol | Nombre Completo | Género | Fecha Nacimiento |
+|---|---|---|---|---|---|
+| `admin@udmarketplace.com` | `Admin123!` | `ADMIN` | Carlos Augusto Pérez Gómez | Masculino | 1985-05-15 |
+| `seller1@udmarketplace.com` | `Seller123!` | `SELLER` | María Isabel Rodríguez Sánchez | Femenino | 1990-08-22 |
+| `buyer1@udmarketplace.com` | `Buyer123!` | `BUYER` | Juan García Martínez | Masculino | 1995-12-10 |

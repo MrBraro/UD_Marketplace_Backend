@@ -22,17 +22,17 @@ import org.springframework.stereotype.Service;
 /**
  * Implementación principal del servicio de autenticación.
  *
- * <p>Orquesta el flujo completo de autenticación en dos pasos:
+ * <p>Orquesta el flujo completo de autenticación en dos pasos alineado con el diagrama ER:
  *
  * <pre>
  * Paso 1 — login() [RF08]:
- *   → Busca el usuario por username
- *   → Valida la contraseña contra el hash BCrypt
- *   → Genera y envía el código 2FA al email
+ *   → Busca el usuario por correoUsuario
+ *   → Valida la contraseña contra el hash passwordUsua
+ *   → Genera y envía el código 2FA al correoUsuario
  *   → Retorna estado TWO_FACTOR_REQUIRED
  *
  * Paso 2 — verifyTwoFactor() [RF11]:
- *   → Busca el usuario por username
+ *   → Busca el usuario por correoUsuario
  *   → Valida el código 2FA recibido
  *   → Limpia el código usado (previene reutilización)
  *   → Genera y retorna el JWT de sesión
@@ -55,42 +55,34 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * {@inheritDoc}
-     *
-     * <p>Seguridad: el mensaje de error es intencional y genérico para prevenir
-     * ataques de enumeración de usuarios (user enumeration attacks).
      */
     @Override
     public LoginStepResponse login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new InvalidCredentialsException(
-                        "Credenciales inválidas"));
+        User user = userRepository.findByCorreoUsuario(request.getCorreoUsuario())
+                .orElseThrow(() -> new InvalidCredentialsException("Credenciales inválidas"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.getPasswordUsua(), user.getPasswordUsua())) {
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
 
         // Credenciales válidas (RF08) — generar y enviar código 2FA
         twoFactorService.generateAndSendCode(user);
-        log.debug("Login exitoso para usuario '{}', código 2FA enviado", user.getUsername());
+        log.debug("Login exitoso para usuario '{}', código 2FA enviado", user.getCorreoUsuario());
 
         return new LoginStepResponse(
                 "TWO_FACTOR_REQUIRED",
-                user.getUsername(),
+                user.getCorreoUsuario(),
                 "Se ha enviado un código de verificación a tu email registrado"
         );
     }
 
     /**
      * {@inheritDoc}
-     *
-     * <p>El código 2FA es eliminado del usuario tras su uso exitoso
-     * para prevenir reutilización del mismo código.
      */
     @Override
     public LoginResponse verifyTwoFactor(TwoFactorRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new InvalidCredentialsException(
-                        "Credenciales inválidas"));
+        User user = userRepository.findByCorreoUsuario(request.getCorreoUsuario())
+                .orElseThrow(() -> new InvalidCredentialsException("Credenciales inválidas"));
 
         if (!twoFactorService.validateCode(user, request.getTwoFactorCode())) {
             throw new TwoFactorException("Código de verificación inválido");
@@ -101,10 +93,10 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         // Emitir JWT (RF11)
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
-        log.debug("JWT emitido para usuario '{}' con rol '{}'", user.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(user.getCorreoUsuario(), user.getRolUsua().name());
+        log.debug("JWT emitido para usuario '{}' con rol '{}'", user.getCorreoUsuario(), user.getRolUsua());
 
-        return new LoginResponse(token, user.getUsername(), user.getRole().name(), "Bearer");
+        return new LoginResponse(token, user.getCorreoUsuario(), user.getRolUsua().name(), "Bearer");
     }
 
     /** {@inheritDoc} */
@@ -116,10 +108,9 @@ public class AuthServiceImpl implements AuthService {
 
     /** {@inheritDoc} */
     @Override
-    public UserInfoResponse getCurrentUser(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new InvalidCredentialsException(
-                        "Usuario no encontrado"));
+    public UserInfoResponse getCurrentUser(String correoUsuario) {
+        User user = userRepository.findByCorreoUsuario(correoUsuario)
+                .orElseThrow(() -> new InvalidCredentialsException("Usuario no encontrado"));
         return userMapper.toUserInfoResponse(user);
     }
 }
