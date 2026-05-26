@@ -1,6 +1,6 @@
 # Contrato de la API de Autenticación y Autorización (Alineado con Diagrama ER)
 
-Este documento define de forma precisa los contratos de comunicación (endpoints, métodos, payloads, cabeceras y códigos de respuesta HTTP) expuestos por el backend de autenticación de **UD Marketplace**, alineados al diagrama de Entidad-Relación (ER).
+Este documento define de forma precisa los contratos de comunicación (endpoints, métodos, payloads, cabeceras y códigos de respuesta HTTP) expuestos por el backend de autenticación de **UD Marketplace**, alineados al diagrama de Entidad-Relación (ER) y en español.
 
 ---
 
@@ -87,11 +87,11 @@ Valida el código de un solo uso recibido y emite el JWT firmado (RF11).
     {
       "token": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImlhdCI...",
       "correoUsuario": "admin@udmarketplace.com",
-      "rolUsua": "ADMIN",
+      "rolUsua": "ADMINISTRADOR",
       "tokenType": "Bearer"
     }
     ```
-    *El token contiene los claims: sub (correoUsuario) y role (rolUsua) con una expiración de 24 horas.*
+    *El token contiene los claims: sub (correoUsuario) y role (rolUsua: ADMINISTRADOR, VENDEDOR, COMPRADOR) con una expiración de 24 horas.*
 
   - **`401 Unauthorized` (Código incorrecto o expirado - RF11):**
     ```json
@@ -147,7 +147,7 @@ Retorna los datos del usuario autenticado en base al token JWT enviado, mapeando
     {
       "codigoUsua": 1,
       "correoUsuario": "admin@udmarketplace.com",
-      "rolUsua": "ADMIN",
+      "rolUsua": "ADMINISTRADOR",
       "primerNombre": "Carlos",
       "segundoNombre": "Augusto",
       "primerApellido": "Pérez",
@@ -160,28 +160,28 @@ Retorna los datos del usuario autenticado en base al token JWT enviado, mapeando
 ---
 
 ### 5. Demostración de Autorización por Rol (RF24)
-Endpoints restringidos a roles específicos del negocio: `ADMIN`, `SELLER` o `BUYER`.
+Endpoints restringidos a roles específicos del negocio: `ADMINISTRADOR`, `VENDEDOR` o `COMPRADOR`.
 
-#### A. Panel Administrativo (ADMIN)
+#### A. Panel Administrativo (ADMINISTRADOR)
 - **Ruta:** `/api/admin/dashboard`
 - **Método:** `GET`
-- **Permitido para:** `ADMIN`
+- **Permitido para:** `ADMINISTRADOR`
 
-#### B. Gestión de Vendedor (SELLER)
+#### B. Gestión de Vendedor (VENDEDOR)
 - **Ruta:** `/api/seller/products`
 - **Método:** `GET`
-- **Permitido para:** `SELLER`
+- **Permitido para:** `VENDEDOR`
 
-#### C. Catálogo de Comprador (BUYER)
+#### C. Catálogo de Comprador (COMPRADOR)
 - **Ruta:** `/api/buyer/catalog`
 - **Método:** `GET`
-- **Permitido para:** `BUYER`
+- **Permitido para:** `COMPRADOR`
 
 - **Respuestas para Endpoints de Rol:**
   - **`200 OK` (Acceso concedido):**
     ```json
     {
-      "message": "Bienvenido al panel administrativo — Acceso ADMIN"
+      "message": "Bienvenido al panel administrativo — Acceso ADMINISTRADOR"
     }
     ```
   - **`403 Forbidden` (Acceso denegado - Rol incorrecto o permisos insuficientes - RF24):**
@@ -200,6 +200,6 @@ Cargados automáticamente al arrancar la aplicación para pruebas:
 
 | CorreoUsuario | Contraseña | Rol | Nombre Completo | Género | Fecha Nacimiento |
 |---|---|---|---|---|---|
-| `admin@udmarketplace.com` | `Admin123!` | `ADMIN` | Carlos Augusto Pérez Gómez | Masculino | 1985-05-15 |
-| `seller1@udmarketplace.com` | `Seller123!` | `SELLER` | María Isabel Rodríguez Sánchez | Femenino | 1990-08-22 |
-| `buyer1@udmarketplace.com` | `Buyer123!` | `BUYER` | Juan García Martínez | Masculino | 1995-12-10 |
+| `admin@udmarketplace.com` | `Admin123!` | `ADMINISTRADOR` | Carlos Augusto Pérez Gómez | Masculino | 1985-05-15 |
+| `seller1@udmarketplace.com` | `Seller123!` | `VENDEDOR` | María Isabel Rodríguez Sánchez | Femenino | 1990-08-22 |
+| `buyer1@udmarketplace.com` | `Buyer123!` | `COMPRADOR` | Juan García Martínez | Masculino | 1995-12-10 |

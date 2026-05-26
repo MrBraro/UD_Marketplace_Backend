@@ -12,14 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 
 /**
- * Carga datos iniciales (seed) al arrancar la aplicación alineados al diagrama ER.
- *
- * <p><strong>Credenciales de prueba:</strong>
- * <pre>
- *   ADMIN  → Correo: admin@udmarketplace.com    | Password: Admin123!
- *   SELLER → Correo: seller1@udmarketplace.com  | Password: Seller123!
- *   BUYER  → Correo: buyer1@udmarketplace.com   | Password: Buyer123!
- * </pre>
+ * Carga datos iniciales (seed) al arrancar la aplicación alineados al diagrama ER y en español.
  */
 @Slf4j
 @Component
@@ -36,19 +29,19 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        createUser("admin@udmarketplace.com", "Admin123!", Role.ADMIN, 
+        createUser("admin@udmarketplace.com", "Admin123!", Role.ADMINISTRADOR, 
                 "Carlos", "Augusto", "Pérez", "Gómez", 
                 LocalDate.of(1985, 5, 15), "Masculino");
 
-        createUser("seller1@udmarketplace.com", "Seller123!", Role.SELLER, 
+        createUser("seller1@udmarketplace.com", "Seller123!", Role.VENDEDOR, 
                 "María", "Isabel", "Rodríguez", "Sánchez", 
                 LocalDate.of(1990, 8, 22), "Femenino");
 
-        createUser("buyer1@udmarketplace.com", "Buyer123!", Role.BUYER, 
+        createUser("buyer1@udmarketplace.com", "Buyer123!", Role.COMPRADOR, 
                 "Juan", null, "García", "Martínez", 
                 LocalDate.of(1995, 12, 10), "Masculino");
 
-        log.info("DataSeeder: 3 usuarios de prueba creados (admin@udmarketplace.com, seller1@udmarketplace.com, buyer1@udmarketplace.com)");
+        log.info("DataSeeder: 3 usuarios de prueba creados (admin@udmarketplace.com con rol ADMINISTRADOR, seller1@udmarketplace.com con rol VENDEDOR, buyer1@udmarketplace.com con rol COMPRADOR)");
     }
 
     private void createUser(String correoUsuario, String rawPassword, Role role,
