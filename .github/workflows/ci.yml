@@ -1,0 +1,31 @@
+name: CI — UD Marketplace Backend
+
+on:
+  push:
+    branches: [ main, develop, "feature/**" ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compilar
+        run: mvn compile -B
+
+      - name: Ejecutar pruebas unitarias
+        run: mvn test -B
+
+      - name: Verificar documentación
+        run: mvn checkstyle:check -B
