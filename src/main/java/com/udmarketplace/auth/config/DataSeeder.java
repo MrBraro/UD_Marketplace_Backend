@@ -12,26 +12,45 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Carga datos iniciales (seed) al arrancar la aplicación.
+ * Componente de inicialización que inserta datos de prueba al arrancar la aplicación.
  *
- * <p>Los usuarios de prueba se crean con todos los campos del diccionario técnico:
- * <pre>
- *   ADMINISTRADOR → correo_institu: admin@udmarketplace.com    | password: Admin123!
- *   VENDEDOR      → correo_institu: seller1@udmarketplace.com  | password: Seller123!
- *   COMPRADOR     → correo_institu: buyer1@udmarketplace.com   | password: Buyer123!
- * </pre>
+ * <p>Se ejecuta automáticamente al inicio gracias a {@link CommandLineRunner}.
+ * Si ya existen usuarios en la base de datos, el seeder omite la inserción
+ * para evitar duplicados en reinicios del servidor.
+ *
+ * <p>Crea tres usuarios de prueba que cubren todos los roles del sistema:
+ * <ul>
+ *   <li>{@code ADMINISTRADOR} — gestión del catálogo y PQRs</li>
+ *   <li>{@code VENDEDOR}      — publicación y gestión de productos</li>
+ *   <li>{@code COMPRADOR}     — navegación, compra y valoración</li>
+ * </ul>
+ *
+ * <p>Todas las contraseñas se almacenan mediante hash bcrypt.
+ *
+ * @version 1.0
+ * @since 2026-05-28
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
+    /** Repositorio de usuarios para verificar existencia e insertar datos semilla. */
     private final UserRepository userRepository;
+
+    /** Encoder bcrypt para almacenar contraseñas de forma segura. */
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Punto de entrada del seeder. Se ejecuta una vez al arrancar la aplicación.
+     * Si ya hay usuarios registrados, omite la inserción.
+     *
+     * @param args argumentos de línea de comandos (no usados)
+     */
     @Override
     public void run(String... args) {
         if (userRepository.count() > 0) {
@@ -41,73 +60,127 @@ public class DataSeeder implements CommandLineRunner {
 
         createAdmin("admin@udmarketplace.com", "Admin123!",
                 "Carlos", "Augusto", "Pérez", "Gómez",
-                LocalDate.of(1985, 5, 15), "Masculino", "3001112233", "C-ADMIN-001");
+                LocalDate.of(1985, 5, 15), "Masculino", "3001112233", 1001);
 
         createSeller("seller1@udmarketplace.com", "Seller123!",
                 "María", "Isabel", "Rodríguez", "Sánchez",
-                LocalDate.of(1990, 8, 22), "Femenino", "3114445566", new java.math.BigDecimal("4.50"));
+                LocalDate.of(1990, 8, 22), "Femenino", "3114445566", new BigDecimal("0.00"));
 
         createBuyer("buyer1@udmarketplace.com", "Buyer123!",
                 "Juan", null, "García", "Martínez",
                 LocalDate.of(1995, 12, 10), "Masculino", "3227778899");
 
-        log.info("DataSeeder: 3 usuarios de prueba (Administrador, Vendedor, Comprador) creados correctamente.");
+        log.info("DataSeeder: 3 usuarios de prueba creados.");
     }
 
-    private void createAdmin(String correoInstitu, String rawPassword,
+    /**
+     * Crea y persiste un usuario con rol {@code ADMINISTRADOR}.
+     *
+     * @param correo          correo electrónico del administrador
+     * @param rawPassword     contraseña en texto plano (se hashea con bcrypt)
+     * @param primerNombre    primer nombre
+     * @param segundoNombre   segundo nombre (puede ser {@code null})
+     * @param primerApellido  primer apellido
+     * @param segundoApellido segundo apellido
+     * @param fechaNacimiento fecha de nacimiento
+     * @param genero          género del usuario
+     * @param tel             teléfono de contacto
+     * @param numeroContrato  número de contrato único del administrador
+     */
+    private void createAdmin(String correo, String rawPassword,
                              String primerNombre, String segundoNombre,
                              String primerApellido, String segundoApellido,
-                             LocalDate fechaNacimiento, String genero, String telUser,
-                             String numeroContrato) {
+                             LocalDate fechaNacimiento, String genero, String tel,
+                             Integer numeroContrato) {
         Administrador admin = new Administrador();
-        populateUserFields(admin, correoInstitu, rawPassword, Role.ADMINISTRADOR,
+        populateUserFields(admin, correo, rawPassword, Role.ADMINISTRADOR,
                 primerNombre, segundoNombre, primerApellido, segundoApellido,
-                fechaNacimiento, genero, telUser);
+                fechaNacimiento, genero, tel);
         admin.setNumeroContrato(numeroContrato);
         userRepository.save(admin);
-        log.debug("DataSeeder: Administrador '{}' creado.", correoInstitu);
     }
 
-    private void createSeller(String correoInstitu, String rawPassword,
+    /**
+     * Crea y persiste un usuario con rol {@code VENDEDOR}.
+     *
+     * @param correo          correo electrónico del vendedor
+     * @param rawPassword     contraseña en texto plano (se hashea con bcrypt)
+     * @param primerNombre    primer nombre
+     * @param segundoNombre   segundo nombre (puede ser {@code null})
+     * @param primerApellido  primer apellido
+     * @param segundoApellido segundo apellido
+     * @param fechaNacimiento fecha de nacimiento
+     * @param genero          género del usuario
+     * @param tel             teléfono de contacto
+     * @param calificacion    calificación inicial del vendedor (normalmente 0.00)
+     */
+    private void createSeller(String correo, String rawPassword,
                               String primerNombre, String segundoNombre,
                               String primerApellido, String segundoApellido,
-                              LocalDate fechaNacimiento, String genero, String telUser,
-                              java.math.BigDecimal calificacion) {
+                              LocalDate fechaNacimiento, String genero, String tel,
+                              BigDecimal calificacion) {
         Vendedor seller = new Vendedor();
-        populateUserFields(seller, correoInstitu, rawPassword, Role.VENDEDOR,
+        populateUserFields(seller, correo, rawPassword, Role.VENDEDOR,
                 primerNombre, segundoNombre, primerApellido, segundoApellido,
-                fechaNacimiento, genero, telUser);
+                fechaNacimiento, genero, tel);
         seller.setCalificacion(calificacion);
         userRepository.save(seller);
-        log.debug("DataSeeder: Vendedor '{}' creado.", correoInstitu);
     }
 
-    private void createBuyer(String correoInstitu, String rawPassword,
+    /**
+     * Crea y persiste un usuario con rol {@code COMPRADOR}.
+     *
+     * @param correo          correo electrónico del comprador
+     * @param rawPassword     contraseña en texto plano (se hashea con bcrypt)
+     * @param primerNombre    primer nombre
+     * @param segundoNombre   segundo nombre (puede ser {@code null})
+     * @param primerApellido  primer apellido
+     * @param segundoApellido segundo apellido
+     * @param fechaNacimiento fecha de nacimiento
+     * @param genero          género del usuario
+     * @param tel             teléfono de contacto
+     */
+    private void createBuyer(String correo, String rawPassword,
                              String primerNombre, String segundoNombre,
                              String primerApellido, String segundoApellido,
-                             LocalDate fechaNacimiento, String genero, String telUser) {
+                             LocalDate fechaNacimiento, String genero, String tel) {
         Comprador buyer = new Comprador();
-        populateUserFields(buyer, correoInstitu, rawPassword, Role.COMPRADOR,
+        populateUserFields(buyer, correo, rawPassword, Role.COMPRADOR,
                 primerNombre, segundoNombre, primerApellido, segundoApellido,
-                fechaNacimiento, genero, telUser);
+                fechaNacimiento, genero, tel);
         userRepository.save(buyer);
-        log.debug("DataSeeder: Comprador '{}' creado.", correoInstitu);
     }
 
-    private void populateUserFields(User user, String correoInstitu, String rawPassword, Role role,
+    /**
+     * Rellena los campos comunes de la entidad {@link User} para cualquier rol.
+     * La contraseña se codifica con bcrypt antes de asignarla.
+     *
+     * @param user            entidad de usuario a poblar (ya instanciada por el subtipo)
+     * @param correo          correo electrónico institucional
+     * @param rawPassword     contraseña en texto plano
+     * @param role            rol asignado al usuario
+     * @param primerNombre    primer nombre
+     * @param segundoNombre   segundo nombre (puede ser {@code null})
+     * @param primerApellido  primer apellido
+     * @param segundoApellido segundo apellido
+     * @param fechaNacimiento fecha de nacimiento
+     * @param genero          género del usuario
+     * @param tel             teléfono de contacto
+     */
+    private void populateUserFields(User user, String correo, String rawPassword, Role role,
                                     String primerNombre, String segundoNombre,
                                     String primerApellido, String segundoApellido,
-                                    LocalDate fechaNacimiento, String genero, String telUser) {
-        user.setCorreoInstitu(correoInstitu);
+                                    LocalDate fechaNacimiento, String genero, String tel) {
+        user.setCorreoUsuario(correo);
         user.setPasswordUsua(passwordEncoder.encode(rawPassword));
-        user.setPerimisoUser(role);
+        user.setRolUsua(role);
         user.setPrimerNombre(primerNombre);
         user.setSegundoNombre(segundoNombre);
         user.setPrimerApellido(primerApellido);
         user.setSegundoApellido(segundoApellido);
         user.setFechaNacimiento(fechaNacimiento);
         user.setGenero(genero);
-        user.setTelUser(telUser);
+        user.setTelUser(tel);
         user.setActivo(true);
     }
 }
