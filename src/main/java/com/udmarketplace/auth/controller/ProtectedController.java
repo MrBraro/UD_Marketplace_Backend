@@ -1,3 +1,15 @@
+/**
+ * Controlador de recursos de prueba protegidos por rol en el marketplace UD.
+ *
+ * <p>Expone tres endpoints de verificación del sistema de autorización RBAC,
+ * uno por cada rol disponible (ADMINISTRADOR, VENDEDOR, COMPRADOR). Sirve para
+ * confirmar que el filtro JWT y las anotaciones {@code @PreAuthorize} funcionan
+ * correctamente. No expone lógica de negocio real.
+ *
+ * @author Daniel Perez
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.controller;
 
 import com.udmarketplace.auth.dto.MessageResponse;
@@ -7,9 +19,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Controlador de recursos protegidos por rol (RF24) alineados al ER.
- */
 @RestController
 @RequiredArgsConstructor
 public class ProtectedController {

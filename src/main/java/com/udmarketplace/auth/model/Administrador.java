@@ -4,19 +4,28 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 /**
- * Entidad que representa al subtipo Administrador.
+ * Entidad que representa al subtipo Administrador en la herencia JOINED de {@link User}.
  *
- * <p>Mapeado al diccionario de datos:
+ * <p>Mapeada a la tabla {@code administrador}, vinculada a {@code usuario}
+ * mediante {@code codigo_user} (clave primaria y foránea simultáneamente).
+ *
+ * <p>Los administradores tienen capacidades exclusivas como:
  * <ul>
- *   <li>codigo_user (clave primaria y foránea conectada a usuario)</li>
- *   <li>numero_contrato (contrato laboral o de prestación de servicios)</li>
+ *   <li>Crear y desactivar categorías de productos</li>
+ *   <li>Gestionar usuarios (actualizar datos, cambiar estado)</li>
+ *   <li>Recibir y gestionar PQRs asignadas automáticamente</li>
+ *   <li>Inactivar valoraciones</li>
  * </ul>
+ *
+
+ * @version 1.0
+ * @since 2026-05-28
  */
 @Entity
 @Table(name = "administrador")
@@ -27,6 +36,10 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class Administrador extends User {
 
-    @Column(name = "numero_contrato", length = 100)
-    private String numeroContrato;
+    /**
+     * Número de contrato laboral o de prestación de servicios del administrador.
+     * Valor único en el sistema.
+     */
+    @Column(name = "numero_contrato", unique = true)
+    private Integer numeroContrato;
 }
