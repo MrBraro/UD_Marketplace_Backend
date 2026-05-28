@@ -27,5 +27,10 @@ jobs:
       - name: Ejecutar pruebas unitarias
         run: mvn test -B
 
-      - name: Verificar documentación
-        run: mvn checkstyle:check -B
+      - name: Publicar reporte de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7

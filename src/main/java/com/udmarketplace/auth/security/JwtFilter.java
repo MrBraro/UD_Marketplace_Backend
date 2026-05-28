@@ -1,3 +1,18 @@
+/**
+ * Filtro de autenticación JWT del marketplace UD. Se ejecuta una única vez por request HTTP.
+ *
+ * <p>Ejecuta la siguiente secuencia de validación por cada request:
+ * <ol>
+ *   <li>Extrae el token Bearer del header {@code Authorization}.</li>
+ *   <li>Valida la estructura, firma y vigencia del token con {@link JwtUtil}.</li>
+ *   <li>Verifica que el token no fue invalidado por logout ({@link TokenBlacklistService}).</li>
+ *   <li>Si todo es válido, establece la autenticación en el {@code SecurityContextHolder}.</li>
+ * </ol>
+ *
+ * @author 
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.security;
 
 import com.udmarketplace.auth.service.TokenBlacklistService;
@@ -16,18 +31,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Filtro JWT que se ejecuta una vez por cada request HTTP.
- *
- * <p>Extrae y valida el token usando correo_usuario como identificador principal.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
 
+    /** Utilidad JWT para validación y extracción de claims. */
     private final JwtUtil jwtUtil;
+
+    /** Servicio de carga de usuarios requerido por Spring Security. */
     private final CustomUserDetailsService userDetailsService;
+
+    /** Servicio de lista negra para rechazar tokens invalidados por logout. */
     private final TokenBlacklistService tokenBlacklistService;
 
     @Override

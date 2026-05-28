@@ -1,3 +1,13 @@
+/**
+ * DTO de respuesta estándar para todos los errores de la API del marketplace UD.
+ *
+ * <p>Retornado por {@link com.udmarketplace.auth.exception.GlobalExceptionHandler}
+ * en todos los casos de error (HTTP 4xx y 5xx). Garantiza que el cliente siempre
+ * reciba un formato consistente sin exponer información interna del servidor.
+ *
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.dto;
 
 import lombok.AllArgsConstructor;
@@ -5,12 +15,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Response estándar para errores de la API.
- *
- * <p>Retornado por {@code GlobalExceptionHandler} en todos los casos de error.
- * El cliente siempre recibirá este formato cuando el HTTP status sea 4xx o 5xx.
- */
 @Data
 @Builder
 @NoArgsConstructor

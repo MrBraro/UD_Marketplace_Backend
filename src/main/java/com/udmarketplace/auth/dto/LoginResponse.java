@@ -1,11 +1,17 @@
+/**
+ * DTO de respuesta emitido tras la verificación exitosa del código 2FA (Paso 2 del login).
+ *
+ * <p>Retornado por {@code POST /api/auth/verifyTwoFactor} cuando el código 2FA es válido.
+ * Contiene el JWT de sesión de 24 horas y la información básica del usuario autenticado.
+ *
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-/**
- * Response del endpoint POST /api/auth/verifyTwoFactor cuando el código 2FA es válido (Paso 2).
- */
 @Data
 @AllArgsConstructor
 public class LoginResponse {
