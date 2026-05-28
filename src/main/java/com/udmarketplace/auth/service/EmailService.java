@@ -1,17 +1,22 @@
-package com.udmarketplace.auth.service;
-
 /**
- * Contrato del servicio de envío de emails.
+ * Contrato del servicio de envío de emails del marketplace UD.
  *
  * <p>Abstrae el mecanismo de envío para permitir múltiples implementaciones:
  * <ul>
- *   <li>{@code EmailServiceImpl} — mock/log para desarrollo</li>
- *   <li>Futura implementación SMTP usando {@code JavaMailSender}</li>
+ *   <li>{@code EmailServiceImpl} — delega al backend Python de correos en desarrollo</li>
+ *   <li>Futura implementación SMTP directa usando {@code JavaMailSender}</li>
  * </ul>
  *
- * <p>Decisión de diseño: no se usa directamente JavaMailSender en esta etapa
- * para evitar dependencia de configuración SMTP que no es parte del alcance actual.
+ * <p>Decisión de diseño: el envío efectivo de emails es responsabilidad del
+ * backend Python (gestor de correos); este contrato lo invoca a través de
+ * {@link PythonEmailClientService}.
+ *
+ * @author 
+ * @version 1.0
+ * @since 2026-05-28
  */
+package com.udmarketplace.auth.service;
+
 public interface EmailService {
 
     /**

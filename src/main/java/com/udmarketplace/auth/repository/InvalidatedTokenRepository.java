@@ -1,14 +1,19 @@
+/**
+ * Repositorio JPA para la entidad {@link com.udmarketplace.auth.model.InvalidatedToken}.
+ *
+ * <p>Gestiona la lista negra de tokens JWT invalidados por logout. La verificación
+ * {@link #existsByToken(String)} es consultada por
+ * {@link com.udmarketplace.auth.security.JwtFilter} en cada request autenticado.
+ *
+ * @author 
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.repository;
 
 import com.udmarketplace.auth.model.InvalidatedToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/**
- * Repositorio JPA para la entidad {@link InvalidatedToken}.
- *
- * <p>Permite verificar si un token fue previamente invalidado (blacklist),
- * operación ejecutada en cada request autenticado por el filtro JWT.
- */
 public interface InvalidatedTokenRepository extends JpaRepository<InvalidatedToken, Long> {
 
     /**

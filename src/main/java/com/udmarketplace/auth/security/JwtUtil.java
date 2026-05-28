@@ -10,42 +10,69 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * Utilidad para generación y validación de tokens JWT (RF11, RF13).
+ * Utilidad para la generación, validación y extracción de claims en tokens JWT.
  *
- * <p>Usa el algoritmo HS256 con una clave simétrica configurada.
+ * <p>Utiliza el algoritmo HMAC-SHA256 (HS256) con una clave simétrica configurada
+ * mediante la propiedad {@code app.jwt.secret}.
  *
- * <p>Claims del JWT:
+ * <p>Claims incluidos en cada JWT:
  * <ul>
- *   <li>{@code sub}  — correoUsuario del usuario (correo_usuario en ER)</li>
- *   <li>{@code role} — rol del usuario (rol_usua en ER: ADMIN, SELLER, BUYER)</li>
- *   <li>{@code iat}  — timestamp de emisión</li>
- *   <li>{@code exp}  — timestamp de expiración (iat + 24h)</li>
+ *   <li>{@code sub}    — correoUsuario del usuario autenticado</li>
+ *   <li>{@code role}   — rol del usuario ({@code ADMINISTRADOR}, {@code VENDEDOR}, {@code COMPRADOR})</li>
+ *   <li>{@code userId} — identificador único del usuario (asociar token al usuario)</li>
+ *   <li>{@code iat}    — timestamp de emisión</li>
+ *   <li>{@code exp}    — timestamp de expiración (configurable, por defecto 24 h)</li>
  * </ul>
+ *
+ * <p>El tiempo de expiración se configura mediante {@code app.jwt.expiration-ms}.
+ *
+ * @version 1.1
+ * @since 2026-05-28
  */
 @Component
 public class JwtUtil {
 
+    /** Clave secreta HMAC-SHA256 para firmar y verificar los tokens. */
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
+    /** Tiempo de vida del token en milisegundos (configurable, por defecto 24 h). */
     @Value("${app.jwt.expiration-ms}")
     private long jwtExpirationMs;
 
     /**
      * Genera un JWT firmado con HS256.
      *
-     * @param correoUsuario correo del usuario a incluir como subject
-     * @param rolUsua       rol del usuario a incluir como claim
+     * @param correoUsuario correo del usuario (subject)
+     * @param rolUsua       rol del usuario
+     * @param userId        id del usuario (REQ-01: asociar token al usuario)
      * @return JWT compacto listo para enviar al cliente
      */
-    public String generateToken(String correoUsuario, String rolUsua) {
+    public String generateToken(String correoUsuario, String rolUsua, Long userId) {
         return Jwts.builder()
                 .subject(correoUsuario)
                 .claim("role", rolUsua)
+                .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /**
+     * Extrae el identificador único del usuario desde el claim {@code userId} del token (REQ-01).
+     *
+     * <p>Maneja tanto el caso en que el claim se deserialice como {@code Integer}
+     * (comportamiento por defecto de Jackson para valores pequeños) como {@code Long}.
+     *
+     * @param token JWT compacto
+     * @return identificador del usuario, o {@code null} si el claim no existe
+     */
+    public Long extractUserId(String token) {
+        Object id = parseClaims(token).get("userId");
+        if (id instanceof Integer) return ((Integer) id).longValue();
+        if (id instanceof Long) return (Long) id;
+        return null;
     }
 
     /**
@@ -83,6 +110,13 @@ public class JwtUtil {
         }
     }
 
+    /**
+     * Parsea y verifica la firma del JWT, retornando los claims del payload.
+     *
+     * @param token JWT compacto
+     * @return claims del payload
+     * @throws io.jsonwebtoken.JwtException si el token es inválido o la firma no coincide
+     */
     private Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -91,6 +125,11 @@ public class JwtUtil {
                 .getPayload();
     }
 
+    /**
+     * Construye la clave HMAC-SHA256 a partir del secreto configurado.
+     *
+     * @return clave criptográfica para firma y verificación de tokens
+     */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
