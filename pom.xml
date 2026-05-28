@@ -113,6 +113,40 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- El que CORRE las pruebas -->
+            <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.2.5</version>
+            </plugin>
+
+            <!-- El que REVISA la documentación -->
+            <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>3.3.1</version>
+            <dependencies>
+                <dependency>
+                <groupId>com.puppycrawl.tools</groupId>
+                <artifactId>checkstyle</artifactId>
+                <version>10.14.2</version>
+                </dependency>
+            </dependencies>
+            <configuration>
+                <configLocation>config/checkstyle.xml</configLocation>
+                <failsOnError>true</failsOnError>
+                <violationSeverity>error</violationSeverity>
+                <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                <encoding>UTF-8</encoding>
+            </configuration>
+            <executions>
+                <execution>
+                <id>validate</id>
+                <phase>validate</phase>
+                <goals><goal>check</goal></goals>
+                </execution>
+            </executions>
+            </plugin>
         </plugins>
     </build>
 
