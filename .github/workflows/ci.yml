@@ -2,7 +2,12 @@ name: CI — UD Marketplace Backend
 
 on:
   push:
-    branches: [ main, develop, "feature/**" ]
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "!feature/base-de-datos"
+      - "!feature/automatizacion-testing"
   pull_request:
     branches: [ main, develop ]
 
