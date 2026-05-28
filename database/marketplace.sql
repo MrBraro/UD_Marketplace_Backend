@@ -2,15 +2,18 @@ CREATE DATABASE IF NOT EXISTS `marketplace`
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 CREATE TABLE `marketplace`.`usuario` (
-    codigo_user      INT PRIMARY KEY AUTO_INCREMENT,
+    codigo_user      INT PRIMARY KEY,
     primer_nomb      VARCHAR(100),
     segundo_nom      VARCHAR(100),
     primer_apel      VARCHAR(100),
     segundo_apel     VARCHAR(100),
     fecha_nacimiento DATE,
     correo_institu   VARCHAR(150),
+    password_hash    VARCHAR(255) NOT NULL,
     activo           BOOLEAN,
-    permiso_user     LONGBLOB
+    menor_edad       BOOLEAN,
+    permiso_user_menor LONGBLOB
+
 );
 CREATE TABLE `marketplace`.`tel_user` (
     codigo_user INT NOT NULL,
@@ -50,7 +53,8 @@ CREATE TABLE `marketplace`.`promocion` (
 );
 CREATE TABLE `marketplace`.`categoria` (
     id_categoria INT PRIMARY KEY AUTO_INCREMENT,
-    nombre_cat   VARCHAR(100) NOT NULL
+    nombre_cat   VARCHAR(100) NOT NULL,
+    activo_cat   BOOLEAN
 );
 CREATE TABLE `marketplace`.`producto` (
     id_pub          INT PRIMARY KEY AUTO_INCREMENT,
@@ -123,4 +127,3 @@ CREATE TABLE `marketplace`.`pqr` (
     CONSTRAINT fk_pqr_admin   FOREIGN KEY (codigo_admin)
         REFERENCES `marketplace`.`administrador`(codigo_user)
 );
-
