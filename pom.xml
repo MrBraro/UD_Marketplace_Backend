@@ -27,39 +27,63 @@
 
     <dependencies>
 
+<<<<<<< Updated upstream
         <!-- ===================== WEB ===================== -->
+=======
+        <!-- WEB -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- =================== SECURITY =================== -->
+=======
+        <!-- SECURITY -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- ==================== DATA JPA ================== -->
+=======
+        <!-- DATA JPA -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- ================= VALIDATION ================== -->
+=======
+        <!-- VALIDATION -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- =================== H2 DB ==================== -->
         <!-- Development database. Replace datasource config for PostgreSQL/MySQL in production. -->
+=======
+        <!-- MySQL -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- =================== JWT ====================== -->
+=======
+        <!-- JWT -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -78,14 +102,22 @@
             <scope>runtime</scope>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- =================== LOMBOK =================== -->
+=======
+        <!-- LOMBOK -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
+<<<<<<< Updated upstream
         <!-- =================== TESTING ================== -->
+=======
+        <!-- TESTING -->
+>>>>>>> Stashed changes
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
