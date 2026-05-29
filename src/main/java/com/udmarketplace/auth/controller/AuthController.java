@@ -5,9 +5,11 @@ import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
 import com.udmarketplace.auth.dto.MessageResponse;
 import com.udmarketplace.auth.dto.RecuperarPasswordRequest;
+import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.ResetPasswordRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
+import com.udmarketplace.auth.dto.UserResponse;
 import com.udmarketplace.auth.exception.InvalidTokenException;
 import com.udmarketplace.auth.service.AuthService;
 import com.udmarketplace.auth.service.RecuperacionPasswordService;
@@ -17,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Controlador REST para autenticación y gestión de sesión del sistema UD Marketplace.
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
  * <p>Expone todos los endpoints del flujo de autenticación en dos factores (2FA)
  * y recuperación de contraseña:
  * <ul>
+ *   <li>{@code POST /api/auth/register}             — Registra un nuevo usuario, calculando si es menor de edad y exigiendo PDF si aplica</li>
  *   <li>{@code POST /api/auth/login}               — Paso 1: valida credenciales y envía código 2FA</li>
  *   <li>{@code POST /api/auth/verifyTwoFactor}      — Paso 2: valida código 2FA y emite JWT</li>
  *   <li>{@code POST /api/auth/logout}               — Invalida el token de sesión activo</li>
@@ -32,7 +36,11 @@ import org.springframework.web.bind.annotation.*;
  *   <li>{@code POST /api/auth/reset-password}       — Establece nueva contraseña con token válido</li>
  * </ul>
  *
- * @version 1.0
+ * <p>El endpoint de registro consume {@code multipart/form-data} para permitir
+ * recibir simultáneamente el DTO del usuario y el archivo PDF de autorización
+ * del representante legal cuando el usuario sea menor de edad.
+ *
+ * @version 1.1
  * @since 2026-05-28
  */
 @RestController
@@ -46,6 +54,29 @@ public class AuthController {
     /** Servicio de recuperación de contraseña con tokens únicos. */
     private final RecuperacionPasswordService recuperacionPasswordService;
 
+    /**
+     * Registra un nuevo usuario en el sistema.
+     *
+     * <p>El backend calcula si el usuario es menor de edad a partir de la fecha
+     * de nacimiento recibida. Si el usuario resulta menor, se exige un archivo PDF
+     * de autorización firmado por el representante legal y este se asocia al registro.
+     *
+     * <p>La contraseña no se almacena en texto plano; es transformada por la capa
+     * de servicio mediante un algoritmo de hash seguro antes de persistirse.
+     *
+     * @param request DTO con los datos del usuario a registrar
+     * @param pdfAutorizacion archivo PDF de autorización, obligatorio solo si el usuario es menor de edad
+     * @return respuesta con los datos básicos del usuario registrado
+     */
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserResponse> register(
+            @Valid @RequestPart("datos") RegisterRequest request,
+            @RequestPart(value = "pdfAutorizacion", required = false) MultipartFile pdfAutorizacion
+    ) {
+        UserResponse response = authService.register(request, pdfAutorizacion);
+        return ResponseEntity.ok(response);
+    }
+    
     /**
      * Paso 1 del login: valida las credenciales del usuario y, si son correctas,
      * genera y envía el código 2FA al correo registrado.
