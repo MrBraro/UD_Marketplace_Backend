@@ -3,6 +3,7 @@ package com.udmarketplace.catalogo.service.impl;
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.Administrador;
+import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.catalogo.dto.CategoriaDto;
 import com.udmarketplace.catalogo.dto.CrearCategoriaRequest;
@@ -10,6 +11,7 @@ import com.udmarketplace.catalogo.model.Categoria;
 import com.udmarketplace.catalogo.repository.CategoriaRepository;
 import com.udmarketplace.catalogo.service.CategoriaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +23,17 @@ import java.util.List;
  * <p>Gestiona el ciclo de vida de las categorías incluyendo la actualización automática
  * del contador de productos activos al registrar o inactivar publicaciones (REQ-04).
  *
- * <p>La eliminación de categorías es siempre lógica ({@code activoCat = false});
+* <p>La eliminación de categorías es siempre lógica ({@code activoCat = false});
  * los registros nunca se eliminan físicamente para preservar la integridad referencial.
  *
+ * <p>Restricciones funcionales:
+ * <ul>
+ *   <li>Solo administradores pueden crear categorías (RF28)</li>
+ *   <li>Solo administradores pueden inactivar categorías (RF30)</li>
+ * </ul>
+ * 
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Service
@@ -41,17 +49,25 @@ public class CategoriaServiceImpl implements CategoriaService {
     /**
      * {@inheritDoc}
      *
-     * <p>Asocia la categoría al administrador identificado por {@code codigoAdmin}.
+     * <p>Asocia la categoría al administrador identificado por {@code codigoAdmin}
+     * y evita duplicados entre categorías activas.
      */
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+
     public CategoriaDto crearCategoria(CrearCategoriaRequest request, Long codigoAdmin) {
-        Administrador admin = (Administrador) userRepository.findById(codigoAdmin)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
+        Administrador admin = obtenerAdministrador(codigoAdmin);
+
+        String nombreNormalizado = request.getNombreCat().trim();
+
+        if (categoriaRepository.existsByNombreCatIgnoreCaseAndActivoCatTrue(nombreNormalizado)) {
+            throw new OperacionNoPermitidaException("Ya existe una categoría activa con ese nombre");
+        }
 
         Categoria categoria = Categoria.builder()
-                .nombreCat(request.getNombreCat())
-                .descripcionCat(request.getDescripcionCat())
+                .nombreCat(nombreNormalizado)
+                .descripcionCat(request.getDescripcionCat() != null ? request.getDescripcionCat().trim() : null)
                 .activoCat(true)
                 .contadorProductos(0)
                 .administrador(admin)
@@ -62,6 +78,8 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     /** {@inheritDoc} */
     @Override
+    @Transactional(readOnly = true)
+
     public List<CategoriaDto> listarCategoriasActivas() {
         return categoriaRepository.findByActivoCatTrue().stream()
                 .map(this::toDto)
@@ -74,13 +92,24 @@ public class CategoriaServiceImpl implements CategoriaService {
         return toDto(buscarCategoria(idCategoria));
     }
 
-    /** {@inheritDoc} */
+    /** {@inheritDoc}
+     *
+     * <p>Realiza inactivación lógica de la categoría.
+     */
     @Override
     @Transactional
-    public void inactivarCategoria(Long idCategoria, Long codigoAdmin) {
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public CategoriaDto inactivarCategoria(Long idCategoria, Long codigoAdmin) {
+        obtenerAdministrador(codigoAdmin);
+
         Categoria categoria = buscarCategoria(idCategoria);
+
+        if (!categoria.isActivoCat()) {
+            throw new OperacionNoPermitidaException("La categoría ya se encuentra inactiva");
+        }
+
         categoria.setActivoCat(false);
-        categoriaRepository.save(categoria);
+        return toDto(categoriaRepository.save(categoria));
     }
 
     /** {@inheritDoc} */
@@ -88,7 +117,8 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public void incrementarContador(Long idCategoria) {
         Categoria categoria = buscarCategoria(idCategoria);
-        categoria.setContadorProductos(categoria.getContadorProductos() + 1);
+        int actual = categoria.getContadorProductos() != null ? categoria.getContadorProductos() : 0;
+        categoria.setContadorProductos(actual + 1);
         categoriaRepository.save(categoria);
     }
 
@@ -101,7 +131,8 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public void decrementarContador(Long idCategoria) {
         Categoria categoria = buscarCategoria(idCategoria);
-        int nuevoContador = Math.max(0, categoria.getContadorProductos() - 1);
+        int actual = categoria.getContadorProductos() != null ? categoria.getContadorProductos() : 0;
+        int nuevoContador = Math.max(0, actual - 1);
         categoria.setContadorProductos(nuevoContador);
         categoriaRepository.save(categoria);
     }
@@ -119,18 +150,44 @@ public class CategoriaServiceImpl implements CategoriaService {
     }
 
     /**
+     * Valida que el usuario exista y corresponda realmente a un administrador.
+     *
+     * @param codigoAdmin identificador del usuario
+     * @return administrador válido
+     */
+    private Administrador obtenerAdministrador(Long codigoAdmin) {
+        User user = userRepository.findById(codigoAdmin)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
+
+        if (!(user instanceof Administrador)) {
+            throw new OperacionNoPermitidaException("El usuario indicado no corresponde a un administrador");
+        }
+
+        return (Administrador) user;
+    }
+    /**
      * Convierte una entidad {@link Categoria} a su DTO de respuesta.
      *
      * @param c entidad de categoría
-     * @return {@link com.udmarketplace.catalogo.dto.CategoriaDto} con los datos de la categoría
+     * @return {@link CategoriaDto} con los datos de la categoría
      */
     private CategoriaDto toDto(Categoria c) {
+        Long codigoAdmin = null;
+        String nombreAdmin = null;
+
+        if (c.getAdministrador() != null) {
+            codigoAdmin = c.getAdministrador().getCodigoUsua();
+            nombreAdmin = c.getAdministrador().getPrimerNombre() + " " + c.getAdministrador().getPrimerApellido();
+        }
+        
         return CategoriaDto.builder()
                 .idCategoria(c.getIdCategoria())
                 .nombreCat(c.getNombreCat())
                 .descripcionCat(c.getDescripcionCat())
                 .activoCat(c.isActivoCat())
                 .contadorProductos(c.getContadorProductos())
+                .codigoAdmin(codigoAdmin)
+                .nombreAdmin(nombreAdmin)
                 .build();
     }
 }
