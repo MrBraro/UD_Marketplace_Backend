@@ -60,6 +60,7 @@ class TransaccionServiceImplTest {
         u.setCodigoUsua(id);
         u.setPrimerNombre("María");
         u.setPrimerApellido("Torres");
+        u.setActivo(true);
         return u;
     }
 
@@ -129,6 +130,43 @@ class TransaccionServiceImplTest {
         request.setIdPub(10L);
         assertThatThrownBy(() -> service.registrarIntencioneCompra(request, 99L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
+        verify(ordenRepository, never()).save(any());
+    }
+
+    @Test
+    void registrarIntencioneCompra_compradorInactivo_lanzaExcepcion() {
+        User comprador = comprador(1L);
+        comprador.setActivo(false);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
+
+        CrearTransaccionRequest request = new CrearTransaccionRequest();
+        request.setIdPub(10L);
+
+        assertThatThrownBy(() -> service.registrarIntencioneCompra(request, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessageContaining("comprador no está activo");
+
+        verify(productoRepository, never()).findById(anyLong());
+        verify(ordenRepository, never()).save(any());
+    }
+
+    @Test
+    void registrarIntencioneCompra_productoPropio_lanzaExcepcion() {
+        User comprador = comprador(1L);
+        Vendedor vendedor = vendedor(1L);
+        Producto producto = productoDisponible(10L, vendedor);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
+        when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
+
+        CrearTransaccionRequest request = new CrearTransaccionRequest();
+        request.setIdPub(10L);
+
+        assertThatThrownBy(() -> service.registrarIntencioneCompra(request, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessageContaining("propio producto");
+
         verify(ordenRepository, never()).save(any());
     }
 
