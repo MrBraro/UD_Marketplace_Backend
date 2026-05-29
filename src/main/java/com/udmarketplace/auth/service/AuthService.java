@@ -5,6 +5,8 @@ import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
+import com.udmarketplace.auth.dto.UserResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Contrato del servicio principal de autenticación del sistema UD Marketplace.
@@ -17,10 +19,29 @@ import com.udmarketplace.auth.dto.UserInfoResponse;
  *
  * <p>También gestiona el cierre de sesión y la consulta de información del usuario activo.
  *
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 public interface AuthService {
+
+    /**
+     * Registra un nuevo usuario en el sistema.
+     *
+     * <p>La implementación debe calcular si el usuario es menor de edad a partir
+     * de la fecha de nacimiento recibida. Si el usuario es menor, debe exigir
+     * un archivo PDF de autorización firmado por el representante legal y asociarlo
+     * al registro del usuario.
+     *
+     * <p>La contraseña recibida no debe almacenarse en texto plano; debe transformarse
+     * mediante un algoritmo de hash seguro antes de persistirse.
+     *
+     * @param request DTO con los datos del usuario a registrar
+     * @param pdfAutorizacion archivo PDF de autorización, obligatorio solo para usuarios menores de edad
+     * @return DTO con los datos básicos del usuario creado
+     * @throws IllegalArgumentException si el correo ya existe, si falta el PDF siendo requerido
+     *                                  o si los datos del registro incumplen reglas de negocio
+     */
+    UserResponse register(RegisterRequest request, MultipartFile pdfAutorizacion);
 
     /**
      * Paso 1 del login: valida credenciales, registra el intento (REQ-02)

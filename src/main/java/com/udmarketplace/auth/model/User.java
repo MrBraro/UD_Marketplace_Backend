@@ -18,13 +18,15 @@ import java.time.LocalDateTime;
  *   <li>{@code correo_institu} — correo institucional, identificador único de acceso</li>
  *   <li>{@code password_hash} — contraseña almacenada con bcrypt</li>
  *   <li>{@code perimiso_user} — rol en el sistema (ADMINISTRADOR / VENDEDOR / COMPRADOR)</li>
+ *   <li>{@code menor_edad} — indica si el usuario es menor de edad al registrarse</li>
+ *   <li>{@code permiso_user_menor} — autorización PDF del representante legal para menores</li>
  *   <li>{@code two_factor_code} — código 2FA temporal de 6 dígitos</li>
  *   <li>{@code two_factor_expiry} — fecha/hora de expiración del código 2FA</li>
  *   <li>{@code bloqueado_hasta} — bloqueo temporal por intentos fallidos </li>
  * </ul>
  *
  * 
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Entity
@@ -86,6 +88,21 @@ public class User {
     /** Contraseña almacenada como hash bcrypt. Nunca en texto plano. */
     @Column(name = "password_hash", nullable = false)
     private String passwordUsua;
+
+    /** Indica si el usuario era menor de edad al momento de registrarse. */
+    @Column(name = "menor_edad", nullable = false)
+    private boolean menorEdad;
+
+    /**
+     * Archivo PDF de autorización del representante legal.
+     *
+     * <p>Solo aplica para usuarios menores de edad. Se almacena como objeto grande binario
+     * (BLOB) en la base de datos.
+     */
+    @Lob
+    @Column(name = "permiso_user_menor")
+    private byte[] permisoUserMenor;
+
 
     /** Código de verificación 2FA de 6 dígitos (temporal, se limpia tras uso). */
     @Column(name = "two_factor_code", length = 6)

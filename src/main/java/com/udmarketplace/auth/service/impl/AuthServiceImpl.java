@@ -3,18 +3,22 @@ package com.udmarketplace.auth.service.impl;
 import com.udmarketplace.auth.dto.LoginRequest;
 import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
+import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
+import com.udmarketplace.auth.dto.UserResponse;
 import com.udmarketplace.auth.exception.AccountBlockedException;
 import com.udmarketplace.auth.exception.InvalidCredentialsException;
 import com.udmarketplace.auth.exception.TwoFactorException;
 import com.udmarketplace.auth.mapper.UserMapper;
 import com.udmarketplace.auth.model.IntentoFallidoAuth;
 import com.udmarketplace.auth.model.User;
+import com.udmarketplace.auth.model.Role;
 import com.udmarketplace.auth.repository.IntentoFallidoAuthRepository;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.auth.service.AuthService;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.auth.service.TokenBlacklistService;
 import com.udmarketplace.auth.service.TwoFactorService;
 import lombok.RequiredArgsConstructor;
@@ -23,14 +27,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 
 /**
  * Implementación principal del servicio de autenticación del sistema UD Marketplace.
  *
- * <p>Orquesta el flujo completo de autenticación en dos factores:
+ * <p>Orquesta el flujo completo de autenticación en dos factores y el registro de usuarios:
  * <pre>
+ * 
+ * Registro — register():
+ *   → Valida que el correo no esté previamente registrado
+ *   → Calcula si el usuario es menor de edad a partir de la fecha de nacimiento
+ *   → Exige y valida PDF de autorización si aplica
+ *   → Codifica la contraseña con bcrypt antes de persistir
+ *   → Guarda el usuario activo con su información básica
+ *
  * Paso 1 — login():
  *   → Verifica bloqueo temporal de la cuenta
  *   → Valida correo y contraseña con bcrypt
@@ -47,7 +63,7 @@ import java.time.LocalDateTime;
  *   → Delega al TokenBlacklistService para invalidar el token
  * </pre>
  *
- * @version 1.1
+ * @version 1.2
  * @since 2026-05-28
  */
 @Slf4j
@@ -62,6 +78,7 @@ public class AuthServiceImpl implements AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final UserMapper userMapper;
     private final IntentoFallidoAuthRepository intentoFallidoRepo;
+    private final FileValidationService fileValidationService;
 
     /** Número máximo de intentos fallidos antes de bloquear la cuenta. */
     @Value("${app.auth.max-intentos-fallidos:5}")
@@ -70,6 +87,83 @@ public class AuthServiceImpl implements AuthService {
     /** Duración en minutos del bloqueo temporal de cuenta. */
     @Value("${app.auth.minutos-bloqueo:30}")
     private int minutosBloqueo;
+
+    /**
+     * Registra un nuevo usuario en el sistema.
+     *
+     * <p>Calcula si el usuario es menor de edad a partir de su fecha de nacimiento.
+     * Si el usuario es menor, exige un PDF de autorización válido del representante legal.
+     * La contraseña se transforma con bcrypt antes de guardarse.
+     *
+     * @param request datos de registro enviados por el cliente
+     * @param pdfAutorizacion archivo PDF de autorización para usuarios menores de edad
+     * @return respuesta con la información básica del usuario creado
+     */
+    @Override
+    @Transactional
+@Override
+@Transactional
+public UserResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
+    if (userRepository.findByCorreoUsuario(request.getCorreoInstitu()).isPresent()) {
+        throw new IllegalArgumentException("El correo institucional ya se encuentra registrado");
+    }
+
+    if (request.getFechaNacimiento() == null) {
+        throw new IllegalArgumentException("La fecha de nacimiento es obligatoria");
+    }
+
+    if (request.getPermisoUser() == null || request.getPermisoUser().trim().isEmpty()) {
+        throw new IllegalArgumentException("El rol del usuario es obligatorio");
+    }
+
+    final boolean menorEdad = esMenorDeEdad(request.getFechaNacimiento());
+    final Role rol;
+
+    try {
+        rol = Role.valueOf(request.getPermisoUser().trim().toUpperCase(java.util.Locale.ROOT));
+    } catch (IllegalArgumentException ex) {
+        throw new IllegalArgumentException("El rol solicitado no es válido");
+    }
+
+    if (menorEdad) {
+        fileValidationService.validatePdf(pdfAutorizacion);
+    }
+
+    User user = new User();
+    user.setPrimerNomb(request.getPrimerNombre());
+    user.setSegundoNom(request.getSegundoNombre());
+    user.setPrimerApel(request.getPrimerApellido());
+    user.setSegundoApel(request.getSegundoApellido());
+    user.setFechaNacimiento(request.getFechaNacimiento());
+    user.setCorreoUsuario(request.getCorreoInstitu());
+    user.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
+    user.setGenero(request.getGenero());
+    user.setTelUser(request.getTelUser());
+    user.setActivo(true);
+    user.setMenorEdad(menorEdad);
+    user.setRolUsua(rol);
+
+    if (menorEdad) {
+        try {
+            user.setPermisoUserMenor(pdfAutorizacion.getBytes());
+        } catch (IOException e) {
+            throw new IllegalArgumentException("No fue posible procesar el PDF de autorización");
+        }
+    } else {
+        user.setPermisoUserMenor(null);
+    }
+
+    User savedUser = userRepository.save(user);
+    log.info("Usuario registrado exitosamente con correo '{}'", savedUser.getCorreoUsuario());
+
+    return UserResponse.builder()
+            .codigoUser(savedUser.getCodigoUsua())
+            .correoInstitu(savedUser.getCorreoUsuario())
+            .permisoUser(savedUser.getRolUsua().name())
+            .menorEdad(savedUser.getMenorEdad())
+            .activo(savedUser.getActivo())
+            .build();
+}
 
     /**
      * {@inheritDoc}
@@ -155,6 +249,18 @@ public class AuthServiceImpl implements AuthService {
         return userMapper.toUserInfoResponse(user);
     }
 
+    /**
+     * Determina si una persona es menor de edad con base en su fecha de nacimiento.
+     *
+     * @param fechaNacimiento fecha de nacimiento del usuario
+     * @return {@code true} si la edad calculada es menor a 18 años
+     */
+    private boolean esMenorDeEdad(LocalDate fechaNacimiento) {
+        if (fechaNacimiento == null) {
+            throw new IllegalArgumentException("La fecha de nacimiento es obligatoria");
+        }
+        return Period.between(fechaNacimiento, LocalDate.now()).getYears() < 18;
+    }
 
     // Métodos privados de auditoría y control de acceso
     
