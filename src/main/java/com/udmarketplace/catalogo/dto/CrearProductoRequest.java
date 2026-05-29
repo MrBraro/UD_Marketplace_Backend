@@ -1,6 +1,10 @@
 package com.udmarketplace.catalogo.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -13,7 +17,7 @@ import java.math.BigDecimal;
  * en la misma solicitud {@code multipart/form-data}.
  *
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Data
@@ -21,7 +25,7 @@ public class CrearProductoRequest {
 
     /** Nombre del producto (obligatorio, máximo 150 caracteres). */
     @NotBlank(message = "El nombre del producto es obligatorio")
-    @Size(max = 150)
+    @Size(max = 150, message = "El nombre no puede superar los 150 caracteres")
     private String nombrePub;
 
     /** Descripción detallada del producto (opcional, máximo 500 caracteres). */
