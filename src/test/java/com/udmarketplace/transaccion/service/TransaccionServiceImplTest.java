@@ -228,7 +228,7 @@ class TransaccionServiceImplTest {
     }
 
     @Test
-    void confirmarTransaccion_confirmacionDigitalTieneFormato() {
+    void confirmarTransaccion_confirmacionDigitalTieneFormatoYSeRetornaEnDto() {
         User comprador = comprador(1L);
         Vendedor vendedor = vendedor(2L);
         Producto producto = productoDisponible(10L, vendedor);
@@ -239,15 +239,19 @@ class TransaccionServiceImplTest {
         when(ordenRepository.save(any())).thenReturn(orden);
         when(detalleRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.confirmarTransaccion(100L, 2L);
+        TransaccionDto result = service.confirmarTransaccion(100L, 2L);
 
-        // Verificar que el detalle se guardó con confirmación digital en el formato esperado
+        assertThat(result.getDetalleEntrega()).isNotNull();
+        assertThat(result.getDetalleEntrega().getConfirmacionDigital())
+                .matches("^CONF-100-[0-9A-F]{8}$");
+        assertThat(result.getDetalleEntrega().getFechaGeneracion()).isNotNull();
+
         verify(detalleRepo).save(argThat(d ->
                 d.getConfirmacionDigital() != null &&
-                d.getConfirmacionDigital().startsWith("CONF-")
+                d.getConfirmacionDigital().matches("^CONF-100-[0-9A-F]{8}$") &&
+                d.getFechaGeneracion() != null
         ));
     }
-
     @Test
     void confirmarTransaccion_estadoNoPendiente_lanzaExcepcion() {
         User comprador = comprador(1L);
