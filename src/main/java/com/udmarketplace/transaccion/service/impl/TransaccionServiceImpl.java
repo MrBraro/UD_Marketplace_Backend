@@ -69,12 +69,20 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Transactional
     public TransaccionDto registrarIntencioneCompra(CrearTransaccionRequest request, Long codigoComprador) {
         User comprador = userRepository.findById(codigoComprador)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Comprador no encontrado"));
+        .orElseThrow(() -> new RecursoNoEncontradoException("Comprador no encontrado"));
+
+        if (!comprador.isActivo()) {
+            throw new OperacionNoPermitidaException("El comprador no está activo");
+        }
 
         Producto producto = productoRepository.findById(request.getIdPub())
                 .filter(Producto::isActivoPub)
                 .filter(Producto::isDisponibilidad)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Producto no disponible: " + request.getIdPub()));
+
+        if (producto.getVendedor().getCodigoUsua().equals(comprador.getCodigoUsua())) {
+            throw new OperacionNoPermitidaException("No puedes registrar intención de compra sobre tu propio producto");
+        }
 
         // asociar comprador, vendedor y producto
         Orden orden = Orden.builder()
