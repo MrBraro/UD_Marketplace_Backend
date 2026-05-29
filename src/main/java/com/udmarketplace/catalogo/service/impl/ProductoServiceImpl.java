@@ -2,6 +2,7 @@ package com.udmarketplace.catalogo.service.impl;
 
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
+import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.catalogo.dto.CrearProductoRequest;
@@ -22,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,7 +37,7 @@ import java.util.List;
  * para garantizar la reversión ante fallos.
  *
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Service
@@ -142,6 +144,8 @@ public class ProductoServiceImpl implements ProductoService {
         Categoria nuevaCategoria = obtenerCategoria(request.getIdCategoria());
         producto.setCategoria(nuevaCategoria);
 
+        validarImagen(imagen);
+
         if (imagen != null && !imagen.isEmpty()) {
             try {
                 producto.setImagenPub(imagen.getBytes());
@@ -229,6 +233,31 @@ public class ProductoServiceImpl implements ProductoService {
         }
     }
 
+   /**
+     * Valida la imagen enviada.
+     *
+     * <p>Permite JPG, PNG o WEBP con tamaño máximo de 5 MB.
+     *
+     * @param imagen archivo de imagen
+     */
+    private void validarImagen(MultipartFile imagen) {
+        if (imagen == null || imagen.isEmpty()) {
+            return;
+        }
+
+        String contentType = imagen.getContentType();
+        if (contentType == null ||
+                (!contentType.equalsIgnoreCase("image/jpeg")
+                        && !contentType.equalsIgnoreCase("image/png")
+                        && !contentType.equalsIgnoreCase("image/webp"))) {
+            throw new OperacionNoPermitidaException("Formato de imagen no permitido. Use JPG, PNG o WEBP");
+        }
+
+        long maxBytes = 5 * 1024 * 1024;
+        if (imagen.getSize() > maxBytes) {
+            throw new OperacionNoPermitidaException("La imagen supera el tamaño máximo permitido de 5 MB");
+        }
+    }
     /**
      * Resuelve el criterio de ordenamiento textual a un objeto {@link Sort} de Spring Data.
      * Valores soportados: {@code precio_asc}, {@code precio_desc}, {@code nombre}.
@@ -237,15 +266,28 @@ public class ProductoServiceImpl implements ProductoService {
      * @param criterio criterio de ordenamiento recibido como parámetro de consulta
      * @return objeto Sort configurado para la consulta
      */
-    private Sort resolverOrden(String criterio) {
-        if (criterio == null) return Sort.by(Sort.Direction.DESC, "fechaRegistro");
-        return switch (criterio.toLowerCase()) {
-            case "precio_asc"  -> Sort.by(Sort.Direction.ASC,  "precioPub");
-            case "precio_desc" -> Sort.by(Sort.Direction.DESC, "precioPub");
-            case "nombre"      -> Sort.by(Sort.Direction.ASC,  "nombrePub");
-            default            -> Sort.by(Sort.Direction.DESC, "fechaRegistro");
-        };
+/**
+ * Resuelve el criterio de ordenamiento solicitado a una instancia de {@link Sort}.
+ *
+ * @param criterio texto de ordenamiento recibido
+ * @return criterio de ordenamiento aplicado
+ */
+private Sort resolverOrden(String criterio) {
+    if (criterio == null) {
+        return Sort.by(Sort.Direction.DESC, "fechaRegistro");
     }
+
+    switch (criterio.toLowerCase()) {
+        case "precio_asc":
+            return Sort.by(Sort.Direction.ASC, "precioPub");
+        case "precio_desc":
+            return Sort.by(Sort.Direction.DESC, "precioPub");
+        case "nombre":
+            return Sort.by(Sort.Direction.ASC, "nombrePub");
+        default:
+            return Sort.by(Sort.Direction.DESC, "fechaRegistro");
+    }
+}
 
     /**
      * Construye una especificación JPA dinámica a partir de los filtros de búsqueda.
@@ -257,7 +299,9 @@ public class ProductoServiceImpl implements ProductoService {
      */
     private Specification<Producto> construirFiltro(FiltroProductoRequest f) {
         return (root, query, cb) -> {
-            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(cb.isTrue(root.get("activoPub")));
+
             predicates.add(cb.isTrue(root.get("activoPub")));
             if (f.getNombre() != null && !f.getNombre().isBlank())
                 predicates.add(cb.like(cb.lower(root.get("nombrePub")), "%" + f.getNombre().toLowerCase() + "%"));
@@ -283,6 +327,7 @@ public class ProductoServiceImpl implements ProductoService {
      * @return DTO con los datos del producto
      */
     private ProductoDto toDto(Producto p) {
+         String nombreVendedor = p.getVendedor().getPrimerNombre() + " " + p.getVendedor().getPrimerApellido();
         return ProductoDto.builder()
                 .idPub(p.getIdPub())
                 .nombrePub(p.getNombrePub())
