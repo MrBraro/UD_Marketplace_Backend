@@ -1,11 +1,17 @@
+/**
+ * Contrato del servicio de lista negra de tokens JWT del marketplace UD.
+ *
+ * <p>Gestiona la invalidación de tokens al hacer logout y su verificación
+ * en cada request autenticado para impedir el reuso de tokens cerrados.
+ * La implementación actual persiste en MySQL; puede migrarse a Redis con TTL
+ * sin cambiar ningún otro componente.
+ *
+ * @author 
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.service;
 
-/**
- * Contrato del servicio de blacklist de tokens JWT.
- *
- * <p>Gestiona la invalidación de tokens en logout (RF13)
- * y la verificación en cada request autenticado.
- */
 public interface TokenBlacklistService {
 
     /**

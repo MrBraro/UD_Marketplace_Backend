@@ -1,3 +1,17 @@
+/**
+ * Entidad JPA que representa un token JWT invalidado (lista negra) en el marketplace UD.
+ *
+ * <p>Mapea la tabla {@code invalidated_tokens}. Cuando un usuario realiza logout,
+ * el token activo se persiste aquí; el filtro {@link com.udmarketplace.auth.security.JwtFilter}
+ * rechaza cualquier solicitud que use un token presente en esta tabla.
+ *
+ * <p>Decisión de diseño: se usa la misma base de datos relacional por simplicidad.
+ * Puede migrarse a Redis con TTL igual a la expiración del JWT para mejor rendimiento.
+ *
+ * @author
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.model;
 
 import jakarta.persistence.*;
@@ -5,17 +19,6 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-/**
- * Entidad que representa un token JWT invalidado (blacklisted).
- *
- * <p>Implementa la invalidación de tokens para logout (RF13, RF25).
- * Cuando un usuario hace logout, el token se persiste aquí y el filtro
- * JWT rechaza cualquier solicitud que use un token presente en esta tabla.
- *
- * <p>Decisión de diseño: se usa la misma base de datos relacional por
- * simplicidad. En un entorno de alta carga se puede migrar a Redis con TTL
- * igual a la expiración del JWT (24h), sin cambiar la interfaz de servicio.
- */
 @Entity
 @Table(name = "invalidated_tokens")
 @Data

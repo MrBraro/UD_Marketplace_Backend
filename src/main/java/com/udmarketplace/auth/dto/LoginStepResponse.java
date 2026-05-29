@@ -1,11 +1,17 @@
+/**
+ * DTO de respuesta intermedia del flujo de autenticación en dos factores del marketplace UD (Paso 1).
+ *
+ * <p>Retornado por {@code POST /api/auth/login} cuando las credenciales son válidas pero
+ * el segundo factor aún no ha sido verificado. Indica al cliente que debe solicitar el código 2FA.
+ *
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-/**
- * Response del endpoint POST /api/auth/login cuando las credenciales son válidas (Paso 1).
- */
 @Data
 @AllArgsConstructor
 public class LoginStepResponse {
