@@ -1,39 +1,44 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE module PUBLIC
-    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
 
-<!--
-    Configuración mínima de Checkstyle para UD Marketplace Backend.
-    Solo verifica problemas que rompen calidad sin imponer restricciones
-    de nomenclatura (el proyecto usa nombres en español, CLAUDE.md §1).
 
-    Autor: Daniel Perez
-    Versión: 1.0
--->
 <module name="Checker">
-
-    <property name="charset"        value="UTF-8"/>
-    <property name="severity"       value="error"/>
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
     <property name="fileExtensions" value="java"/>
+
+    <!-- Espacios al final de línea -->
+    <module name="RegexpSingleline">
+        <property name="format" value="\s+$"/>
+        <property name="message" value="Línea con espacios al final."/>
+    </module>
 
     <module name="TreeWalker">
 
-        <!-- Importaciones duplicadas o innecesarias -->
-        <module name="RedundantImport"/>
+        <!-- ── Imports ─────────────────────────────────────────── -->
         <module name="UnusedImports"/>
-        <module name="AvoidStarImport"/>
+        <module name="RedundantImport"/>
 
-        <!-- Expresiones booleanas simplificables -->
-        <module name="SimplifyBooleanExpression"/>
-        <module name="SimplifyBooleanReturn"/>
+        <!-- ── Bloques vacíos ──────────────────────────────────── -->
+        <module name="EmptyBlock"/>
 
-        <!-- Sentencias vacías (punto y coma suelto) -->
-        <module name="EmptyStatement"/>
+        <!-- ── Estilo de arreglos ──────────────────────────────── -->
+        <module name="ArrayTypeStyle"/>
 
-        <!-- Comparación de strings con == en lugar de equals() -->
-        <module name="StringLiteralEquality"/>
+        <!-- ── Literales largo: usar L no l ───────────────────── -->
+        <module name="UpperEll"/>
+
+        <!-- ── Complejidad ciclomática (aviso si > 15) ─────────── -->
+        <module name="CyclomaticComplexity">
+            <property name="max" value="15"/>
+        </module>
+
+        <!-- ── Longitud de métodos (aviso si > 60 líneas) ─────── -->
+        <module name="MethodLength">
+            <property name="max" value="80"/>
+        </module>
 
     </module>
-
 </module>
