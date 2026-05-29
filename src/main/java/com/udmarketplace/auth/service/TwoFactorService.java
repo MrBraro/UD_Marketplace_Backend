@@ -1,13 +1,19 @@
+/**
+ * Contrato del servicio de autenticación en dos factores del marketplace UD (2FA).
+ *
+ * <p>Genera un código numérico de 6 dígitos, lo persiste en el usuario
+ * y lo envía al email registrado. También valida el código recibido durante
+ * el segundo paso del flujo de autenticación. El código expira en 10 minutos
+ * tras su generación.
+ *
+ * @author 
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.service;
 
 import com.udmarketplace.auth.model.User;
 
-/**
- * Contrato del servicio de autenticación en dos factores (RF11).
- *
- * <p>Genera un código numérico de 6 dígitos, lo persiste en el usuario
- * y lo envía al email registrado. También valida el código recibido.
- */
 public interface TwoFactorService {
 
     /**

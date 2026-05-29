@@ -1,14 +1,20 @@
+/**
+ * DTO de solicitud para el segundo paso del flujo de autenticación 2FA del marketplace UD.
+ *
+ * <p>Recibe el correo del usuario y el código numérico de 6 dígitos enviado al email
+ * en el endpoint {@code POST /api/auth/verifyTwoFactor}. El código tiene una vigencia
+ * máxima de 10 minutos desde su generación.
+ *
+ * @author
+ * @version 1.0
+ * @since 2026-05-28
+ */
 package com.udmarketplace.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/**
- * Request body para el endpoint POST /api/auth/verifyTwoFactor.
- *
- * <p>Contiene el correoUsuario y el código de 6 dígitos recibido.
- */
 @Data
 public class TwoFactorRequest {
 
