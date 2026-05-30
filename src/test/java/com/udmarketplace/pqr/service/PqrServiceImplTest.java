@@ -97,7 +97,7 @@ class PqrServiceImplTest {
         Administrador a = admin(2L);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(u));
-        when(pqrRepository.contarPqrsAbiertas()).thenReturn(List.of(new Object[]{2L, 1L}));
+        when(pqrRepository.contarPqrsAbiertas()).thenReturn(List.<Object[]>of(new Object[]{2L, 1L}));
         when(userRepository.findById(2L)).thenReturn(Optional.of(a));
 
         Pqr guardada = pqrConEstado(100L, u, a, EstadoPqr.ENVIADA.name());
@@ -156,7 +156,7 @@ class PqrServiceImplTest {
         Administrador a = admin(2L);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(u));
-        when(pqrRepository.contarPqrsAbiertas()).thenReturn(List.of(new Object[]{2L, 0L}));
+        when(pqrRepository.contarPqrsAbiertas()).thenReturn(List.<Object[]>of(new Object[]{2L, 0L}));
         when(userRepository.findById(2L)).thenReturn(Optional.of(a));
 
         byte[] datos = "contenido pdf".getBytes();

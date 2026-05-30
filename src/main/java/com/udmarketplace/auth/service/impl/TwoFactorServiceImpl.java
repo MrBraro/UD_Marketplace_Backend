@@ -66,12 +66,23 @@ public class TwoFactorServiceImpl implements TwoFactorService {
      */
     @Override
     public boolean validateCode(User user, String code) {
-        if (user.getTwoFactorCode() == null || code == null) return false;
-        if (user.getTwoFactorExpiry() != null
-                && user.getTwoFactorExpiry().isBefore(LocalDateTime.now())) {
-            log.debug("Código 2FA expirado para usuario: {}", user.getCorreoUsuario());
+        if (user.getTwoFactorCode() == null || code == null) {
             return false;
         }
+
+        if (user.getTwoFactorExpiry() != null
+                && user.getTwoFactorExpiry().isBefore(LocalDateTime.now())) {
+
+            log.debug("Código 2FA expirado para usuario: {}", user.getCorreoUsuario());
+
+            //invalidar el código 2FA cuando ya expiró.
+            user.setTwoFactorCode(null);
+            user.setTwoFactorExpiry(null);
+            userRepository.save(user);
+
+            return false;
+        }
+
         return user.getTwoFactorCode().equals(code);
     }
 
