@@ -11,7 +11,7 @@
  *   <li>Tamaño máximo permitido</li>
  * </ul>
  *
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 package com.udmarketplace.auth.service;
@@ -28,4 +28,15 @@ public interface FileValidationService {
      *                                  o supera el tamaño permitido
      */
     void validatePdf(MultipartFile file);
+
+    /**
+     * Valida que la imagen sea de un formato soportado, con tipo MIME válido,
+     * extensión correcta y tamaño dentro de los límites permitidos (RNF08).
+     *
+     * @param file archivo de imagen recibido desde una petición multipart/form-data
+     * @throws IllegalArgumentException si el archivo no es una imagen válida,
+     *                                  tiene un MIME type no soportado,
+     *                                  extensión inválida o supera el tamaño permitido
+     */
+    void validateImage(MultipartFile file);
 }
