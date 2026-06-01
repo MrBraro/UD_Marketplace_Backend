@@ -7,14 +7,13 @@
  * @version 1.0
  * @since 2026-06-1
  */
-package com.udmarketplace.catalogo.service.catalogo.controller;
+package com.udmarketplace.catalogo.controller;
 
 import com.udmarketplace.auth.config.SecurityConfig;
 import com.udmarketplace.auth.security.JwtFilter;
 import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.catalogo.dto.CategoriaDto;
 import com.udmarketplace.catalogo.service.CategoriaService;
-import com.udmarketplace.catalogo.controller.CategoriaController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
