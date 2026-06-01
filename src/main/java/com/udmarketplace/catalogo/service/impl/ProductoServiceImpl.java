@@ -2,7 +2,6 @@ package com.udmarketplace.catalogo.service.impl;
 
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
-import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.service.FileValidationService;
@@ -38,7 +37,8 @@ import java.util.List;
  * para garantizar la reversión ante fallos.
  *
  * @author Daniel Perez
- * @version 1.1
+ * @modified by Maria
+ * @version 1.2
  * @since 2026-05-28
  */
 @Service
@@ -151,8 +151,6 @@ public class ProductoServiceImpl implements ProductoService {
 
         Categoria nuevaCategoria = obtenerCategoria(request.getIdCategoria());
         producto.setCategoria(nuevaCategoria);
-
-        validarImagen(imagen);
 
         if (imagen != null && !imagen.isEmpty()) {
             // RNF08: Validar tipo MIME, extensión y tamaño de la imagen
@@ -310,7 +308,6 @@ private Sort resolverOrden(String criterio) {
     private Specification<Producto> construirFiltro(FiltroProductoRequest f) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
-            predicates.add(cb.isTrue(root.get("activoPub")));
 
             predicates.add(cb.isTrue(root.get("activoPub")));
             if (f.getNombre() != null && !f.getNombre().isBlank())
