@@ -12,6 +12,7 @@ package com.udmarketplace.catalogo.service;
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.Vendedor;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.catalogo.dto.CrearProductoRequest;
 import com.udmarketplace.catalogo.dto.FiltroProductoRequest;
@@ -43,6 +44,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ProductoServiceImplTest {
 
+    @Mock
+    private FileValidationService fileValidationService;
     @Mock
     private ProductoRepository productoRepository;
     @Mock
@@ -330,6 +333,9 @@ class ProductoServiceImplTest {
         ProductoDto result = service.registrarProducto(request(2L), imagen, 1L);
 
         assertThat(result.getIdPub()).isEqualTo(10L);
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository).save(any(Producto.class));
+        verify(categoriaService).incrementarContador(2L);
     }
     @Test
     void registrarProducto_imagenBytesFalla_lanzaExcepcion() throws Exception {
@@ -348,6 +354,9 @@ class ProductoServiceImplTest {
         assertThatThrownBy(() -> service.registrarProducto(request(2L), imagen, 1L))
                 .isInstanceOf(OperacionNoPermitidaException.class)
                 .hasMessage("Error al procesar la imagen");
+
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository, never()).save(any());
     }
     @Test
     void actualizarProducto_conImagenValida_reemplazaImagen() throws Exception {
@@ -367,7 +376,8 @@ class ProductoServiceImplTest {
 
         service.actualizarProducto(10L, request(2L), imagen, 1L);
 
-        verify(productoRepository).save(any(Producto.class));
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository).save(producto);
     }
     @Test
     void registrarProducto_sinImagen_noValidaArchivo() {
@@ -381,6 +391,6 @@ class ProductoServiceImplTest {
 
         service.registrarProducto(request(2L), null, 1L);
 
-        verifyNoInteractions();
+        verify(fileValidationService, never()).validateImage(any());
     }
 }
