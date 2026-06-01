@@ -99,8 +99,7 @@ public class AuthServiceImpl implements AuthService {
      * @param pdfAutorizacion archivo PDF de autorización para usuarios menores de edad
      * @return respuesta con la información básica del usuario creado
      */
-    @Override
-    @Transactional
+
 @Override
 @Transactional
 public UserResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
