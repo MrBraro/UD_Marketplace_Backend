@@ -33,8 +33,9 @@ import java.util.List;
  * </ul>
  * 
  * @author Daniel Perez
+ * @modified Maria Velez
  * @version 1.1
- * @since 2026-05-28
+ * @since 2026-06-01
  */
 @Service
 @RequiredArgsConstructor
@@ -57,8 +58,8 @@ public class CategoriaServiceImpl implements CategoriaService {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
 
     public CategoriaDto crearCategoria(CrearCategoriaRequest request, Long codigoAdmin) {
-        Administrador admin = obtenerAdministrador(codigoAdmin);
-
+ Administrador admin = (Administrador) userRepository.findById(codigoAdmin)
+        .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
         String nombreNormalizado = request.getNombreCat().trim();
 
         if (categoriaRepository.existsByNombreCatIgnoreCaseAndActivoCatTrue(nombreNormalizado)) {
@@ -117,8 +118,7 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public void incrementarContador(Long idCategoria) {
         Categoria categoria = buscarCategoria(idCategoria);
-        int actual = categoria.getContadorProductos() != null ? categoria.getContadorProductos() : 0;
-        categoria.setContadorProductos(actual + 1);
+        categoria.setContadorProductos(categoria.getContadorProductos() + 1);
         categoriaRepository.save(categoria);
     }
 
@@ -131,8 +131,7 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public void decrementarContador(Long idCategoria) {
         Categoria categoria = buscarCategoria(idCategoria);
-        int actual = categoria.getContadorProductos() != null ? categoria.getContadorProductos() : 0;
-        int nuevoContador = Math.max(0, actual - 1);
+        int nuevoContador = Math.max(0, categoria.getContadorProductos() - 1);
         categoria.setContadorProductos(nuevoContador);
         categoriaRepository.save(categoria);
     }
