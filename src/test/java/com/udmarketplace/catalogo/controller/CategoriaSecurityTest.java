@@ -14,11 +14,10 @@ import com.udmarketplace.auth.security.JwtFilter;
 import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.catalogo.dto.CategoriaDto;
 import com.udmarketplace.catalogo.service.CategoriaService;
+import com.udmarketplace.catalogo.controller.CategoriaController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -37,13 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(CategoriaController.class)
 @Import(SecurityConfig.class)
-@DisplayName("CategoriaSecurityTest")
-class CategoriaSecurityTest {
+@DisplayName("CategoriaController - Seguridad")
+class CategoriaController {
 
-    @SpringBootConfiguration
-    @EnableAutoConfiguration
-    static class TestApplication {
-    }
     @Autowired
     private MockMvc mockMvc;
 
