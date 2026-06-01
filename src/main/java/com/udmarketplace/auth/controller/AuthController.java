@@ -9,7 +9,6 @@ import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.ResetPasswordRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
-import com.udmarketplace.auth.dto.UserResponse;
 import com.udmarketplace.auth.exception.InvalidTokenException;
 import com.udmarketplace.auth.service.AuthService;
 import com.udmarketplace.auth.service.RecuperacionPasswordService;
@@ -41,8 +40,8 @@ import org.springframework.http.MediaType;
  * recibir simultáneamente el DTO del usuario y el archivo PDF de autorización
  * del representante legal cuando el usuario sea menor de edad.
  *
- * @version 1.1
- * @since 2026-05-28
+ * @version 1.2
+ * @since 2026-06-01
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -70,11 +69,11 @@ public class AuthController {
      * @return respuesta con los datos básicos del usuario registrado
      */
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UserResponse> register(
+    public ResponseEntity<UserInfoResponse> register(
             @Valid @RequestPart("datos") RegisterRequest request,
             @RequestPart(value = "pdfAutorizacion", required = false) MultipartFile pdfAutorizacion
     ) {
-        UserResponse response = authService.register(request, pdfAutorizacion);
+        UserInfoResponse response = authService.register(request, pdfAutorizacion);
         return ResponseEntity.ok(response);
     }
     

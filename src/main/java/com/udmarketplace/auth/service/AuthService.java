@@ -5,7 +5,7 @@ import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
-import com.udmarketplace.auth.dto.UserResponse;
+import com.udmarketplace.auth.dto.RegisterRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -41,7 +41,7 @@ public interface AuthService {
      * @throws IllegalArgumentException si el correo ya existe, si falta el PDF siendo requerido
      *                                  o si los datos del registro incumplen reglas de negocio
      */
-    UserResponse register(RegisterRequest request, MultipartFile pdfAutorizacion);
+    UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion);
 
     /**
      * Paso 1 del login: valida credenciales, registra el intento (REQ-02)
