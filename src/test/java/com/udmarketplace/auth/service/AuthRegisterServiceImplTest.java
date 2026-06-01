@@ -67,7 +67,6 @@ class AuthRegisterServiceImplTest {
         when(file.isEmpty()).thenReturn(false);
         when(file.getContentType()).thenReturn("text/plain");
         when(file.getOriginalFilename()).thenReturn("permiso.pdf");
-        when(file.getSize()).thenReturn(1000L);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -83,7 +82,6 @@ class AuthRegisterServiceImplTest {
         when(file.isEmpty()).thenReturn(false);
         when(file.getContentType()).thenReturn("application/pdf");
         when(file.getOriginalFilename()).thenReturn("permiso.txt");
-        when(file.getSize()).thenReturn(1000L);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -151,7 +149,6 @@ class AuthRegisterServiceImplTest {
         when(file.isEmpty()).thenReturn(false);
         when(file.getContentType()).thenReturn(mimeType);
         when(file.getOriginalFilename()).thenReturn("archivo.jpg");
-        when(file.getSize()).thenReturn(1000L);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -168,7 +165,6 @@ class AuthRegisterServiceImplTest {
         when(file.isEmpty()).thenReturn(false);
         when(file.getContentType()).thenReturn("image/jpeg");
         when(file.getOriginalFilename()).thenReturn(filename);
-        when(file.getSize()).thenReturn(1000L);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
