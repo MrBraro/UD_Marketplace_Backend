@@ -322,8 +322,6 @@ class ProductoServiceImplTest {
 
         MultipartFile imagen = mock(MultipartFile.class);
         when(imagen.isEmpty()).thenReturn(false);
-        when(imagen.getContentType()).thenReturn("image/png");
-        when(imagen.getSize()).thenReturn(1000L);
         when(imagen.getBytes()).thenReturn("abc".getBytes());
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
@@ -344,8 +342,6 @@ class ProductoServiceImplTest {
 
         MultipartFile imagen = mock(MultipartFile.class);
         when(imagen.isEmpty()).thenReturn(false);
-        when(imagen.getContentType()).thenReturn("image/png");
-        when(imagen.getSize()).thenReturn(1000L);
         when(imagen.getBytes()).thenThrow(new IOException("boom"));
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
@@ -366,8 +362,6 @@ class ProductoServiceImplTest {
 
         MultipartFile imagen = mock(MultipartFile.class);
         when(imagen.isEmpty()).thenReturn(false);
-        when(imagen.getContentType()).thenReturn("image/png");
-        when(imagen.getSize()).thenReturn(1000L);
         when(imagen.getBytes()).thenReturn("xyz".getBytes());
 
         when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
