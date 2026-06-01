@@ -6,7 +6,6 @@ import com.udmarketplace.auth.dto.LoginStepResponse;
 import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
-import com.udmarketplace.auth.dto.UserResponse;
 import com.udmarketplace.auth.exception.AccountBlockedException;
 import com.udmarketplace.auth.exception.InvalidCredentialsException;
 import com.udmarketplace.auth.exception.TwoFactorException;
@@ -99,11 +98,10 @@ public class AuthServiceImpl implements AuthService {
      * @param pdfAutorizacion archivo PDF de autorización para usuarios menores de edad
      * @return respuesta con la información básica del usuario creado
      */
-    @Override
-    @Transactional
+
 @Override
 @Transactional
-public UserResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
+public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
     if (userRepository.findByCorreoUsuario(request.getCorreoInstitu()).isPresent()) {
         throw new IllegalArgumentException("El correo institucional ya se encuentra registrado");
     }
@@ -130,10 +128,10 @@ public UserResponse register(RegisterRequest request, MultipartFile pdfAutorizac
     }
 
     User user = new User();
-    user.setPrimerNomb(request.getPrimerNombre());
-    user.setSegundoNom(request.getSegundoNombre());
-    user.setPrimerApel(request.getPrimerApellido());
-    user.setSegundoApel(request.getSegundoApellido());
+    user.setPrimerNombre(request.getPrimerNombre());
+    user.setSegundoNombre(request.getSegundoNombre());
+    user.setPrimerApellido(request.getPrimerApellido());
+    user.setSegundoApellido(request.getSegundoApellido());
     user.setFechaNacimiento(request.getFechaNacimiento());
     user.setCorreoUsuario(request.getCorreoInstitu());
     user.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
@@ -156,13 +154,17 @@ public UserResponse register(RegisterRequest request, MultipartFile pdfAutorizac
     User savedUser = userRepository.save(user);
     log.info("Usuario registrado exitosamente con correo '{}'", savedUser.getCorreoUsuario());
 
-    return UserResponse.builder()
-            .codigoUser(savedUser.getCodigoUsua())
-            .correoInstitu(savedUser.getCorreoUsuario())
-            .permisoUser(savedUser.getRolUsua().name())
-            .menorEdad(savedUser.getMenorEdad())
-            .activo(savedUser.getActivo())
-            .build();
+    return new UserInfoResponse(
+        savedUser.getCodigoUsua(),
+        savedUser.getCorreoUsuario(),
+        savedUser.getRolUsua().name(),
+        savedUser.getPrimerNombre(),
+        savedUser.getSegundoNombre(),
+        savedUser.getPrimerApellido(),
+        savedUser.getSegundoApellido(),
+        savedUser.getGenero(),
+        savedUser.getFechaNacimiento()
+);
 }
 
     /**
