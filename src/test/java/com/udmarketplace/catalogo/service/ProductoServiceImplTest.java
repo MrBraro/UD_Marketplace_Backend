@@ -3,6 +3,7 @@
  * Cubre registro, consulta, actualización, eliminación lógica y búsqueda con filtros.
  *
  * @author Daniel Perez
+ * @modified by Maria Velez
  * @version 1.0
  * @since 2026-05-28
  */
@@ -27,11 +28,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -307,5 +310,77 @@ class ProductoServiceImplTest {
         when(productoRepository.findById(anyLong())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.eliminarProducto(99L, 1L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
+    }
+    @Test
+    void registrarProducto_conImagenValida_guardaImagenYValidaArchivo() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto guardado = productoActivo(10L, vendedor, categoria);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getContentType()).thenReturn("image/png");
+        when(imagen.getSize()).thenReturn(1000L);
+        when(imagen.getBytes()).thenReturn("abc".getBytes());
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(guardado);
+
+        ProductoDto result = service.registrarProducto(request(2L), imagen, 1L);
+
+        assertThat(result.getIdPub()).isEqualTo(10L);
+    }
+    @Test
+    void registrarProducto_imagenBytesFalla_lanzaExcepcion() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getContentType()).thenReturn("image/png");
+        when(imagen.getSize()).thenReturn(1000L);
+        when(imagen.getBytes()).thenThrow(new IOException("boom"));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+
+        assertThatThrownBy(() -> service.registrarProducto(request(2L), imagen, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessage("Error al procesar la imagen");
+    }
+    @Test
+    void actualizarProducto_conImagenValida_reemplazaImagen() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto producto = productoActivo(10L, vendedor, categoria);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getContentType()).thenReturn("image/png");
+        when(imagen.getSize()).thenReturn(1000L);
+        when(imagen.getBytes()).thenReturn("xyz".getBytes());
+
+        when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(producto);
+
+        service.actualizarProducto(10L, request(2L), imagen, 1L);
+
+        verify(productoRepository).save(any(Producto.class));
+    }
+    @Test
+    void registrarProducto_sinImagen_noValidaArchivo() {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto guardado = productoActivo(10L, vendedor, categoria);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(guardado);
+
+        service.registrarProducto(request(2L), null, 1L);
+
+        verifyNoInteractions();
     }
 }
