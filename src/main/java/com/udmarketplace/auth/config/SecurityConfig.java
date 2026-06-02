@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 
 import java.time.LocalDateTime;
 
@@ -80,8 +81,15 @@ public class SecurityConfig {
                             "/api/auth/reset-password"
                     ).permitAll()
 
-                    // Endpoints públicos de catálogo y valoraciones
+                    // Swagger UI y OpenAPI docs
                     .requestMatchers(
+                            "/swagger-ui.html",
+                            "/swagger-ui/**",
+                            "/v3/api-docs/**"
+                    ).permitAll()
+
+                    // Endpoints públicos de catálogo y valoraciones
+                    .requestMatchers(HttpMethod.GET,
                             "/api/categorias",
                             "/api/categorias/**",
                             "/api/productos",

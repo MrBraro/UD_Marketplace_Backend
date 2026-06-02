@@ -56,7 +56,7 @@ public interface CategoriaService {
      * @param codigoAdmin identificador del administrador que realiza la acción
      * @throws com.udmarketplace.auth.exception.RecursoNoEncontradoException si la categoría no existe
      */
-    void inactivarCategoria(Long idCategoria, Long codigoAdmin);
+    CategoriaDto inactivarCategoria(Long idCategoria, Long codigoAdmin);
 
     /**
      * Incrementa en uno el contador de productos activos de la categoría (REQ-04).
