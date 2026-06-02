@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 
 import java.time.LocalDateTime;
 
@@ -81,7 +82,7 @@ public class SecurityConfig {
                     ).permitAll()
 
                     // Endpoints públicos de catálogo y valoraciones
-                    .requestMatchers(
+                    .requestMatchers(HttpMethod.GET,
                             "/api/categorias",
                             "/api/categorias/**",
                             "/api/productos",
