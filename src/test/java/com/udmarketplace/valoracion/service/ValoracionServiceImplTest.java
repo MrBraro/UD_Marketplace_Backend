@@ -246,8 +246,7 @@ class ValoracionServiceImplTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(vendedor));
         when(valoracionRepository.calcularReputacionVendedor(2L)).thenReturn(4.5);
         when(valoracionRepository.contarResenasPositivas(2L)).thenReturn(3L);
-        when(valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(2L))
-                .thenReturn(List.of(new Valoracion(), new Valoracion(), new Valoracion(), new Valoracion()));
+        when(valoracionRepository.contarValoracionesActivasVendedor(2L)).thenReturn(4L);
 
         ReputacionVendedorDto result = service.obtenerReputacionVendedor(2L);
 
@@ -263,8 +262,7 @@ class ValoracionServiceImplTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(vendedor));
         when(valoracionRepository.calcularReputacionVendedor(2L)).thenReturn(null);
         when(valoracionRepository.contarResenasPositivas(2L)).thenReturn(0L);
-        when(valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(2L))
-                .thenReturn(List.of());
+        when(valoracionRepository.contarValoracionesActivasVendedor(2L)).thenReturn(0L);
 
         ReputacionVendedorDto result = service.obtenerReputacionVendedor(2L);
 
