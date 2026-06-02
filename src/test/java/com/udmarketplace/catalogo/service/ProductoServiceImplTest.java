@@ -314,6 +314,92 @@ class ProductoServiceImplTest {
         assertThatThrownBy(() -> service.eliminarProducto(99L, 1L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
     }
+
+    // ------------------------------------------------------------------ obtenerProductosPorVendedor
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorExistenteConProductos_retornaLista() {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        List<Producto> productos = List.of(
+                productoActivo(1L, vendedor, categoria),
+                productoActivo(2L, vendedor, categoria)
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(productos);
+
+        List<ProductoDto> result = service.obtenerProductosPorVendedor(1L, null);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getIdVendedor()).isEqualTo(1L);
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorExistenteSinProductos_retornaListaVacia() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        List<ProductoDto> result = service.obtenerProductosPorVendedor(1L, null);
+
+        assertThat(result).isEmpty();
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorNoExiste_lanzaExcepcion() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.obtenerProductosPorVendedor(99L, null))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Vendedor no encontrado");
+        verify(productoRepository, never()).findByVendedor_CodigoUsuaAndActivoPubTrue(anyLong(), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenPrecioAsc_aplicaOrdenamiento() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, "precio_asc");
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenNombre_aplicaOrdenamiento() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, "nombre");
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenPorDefecto_fechaDesc() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, null);
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
     @Test
     void registrarProducto_conImagenValida_guardaImagenYValidaArchivo() throws Exception {
         Vendedor vendedor = vendedor(1L);
