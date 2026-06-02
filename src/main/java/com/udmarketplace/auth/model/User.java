@@ -48,6 +48,14 @@ public class User {
     @Column(name = "primer_nomb", length = 100)
     private String primerNombre;
 
+    /** Tipo de documento del usuario. */
+    @Column(name = "tipo_documento", length = 100)
+    private String tipoDocumento;
+
+    /** Número de documento del usuario. */
+    @Column(name = "numero_documento", length = 50)
+    private String numeroDocumento;
+
     /** Segundo nombre del usuario (opcional). */
     @Column(name = "segundo_nom", length = 100)
     private String segundoNombre;
@@ -55,6 +63,10 @@ public class User {
     /** Primer apellido del usuario. */
     @Column(name = "primer_apel", length = 100)
     private String primerApellido;
+
+    /** Lugar de nacimiento del usuario. */
+    @Column(name = "lugar_nacimiento", length = 150)
+    private String lugarNacimiento;
 
     /** Segundo apellido del usuario (opcional). */
     @Column(name = "segundo_apel", length = 100)
@@ -76,6 +88,12 @@ public class User {
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
+    /** Estado administrativo de la cuenta. */
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado_cuenta", nullable = false, length = 20)
+    private EstadoCuenta estadoCuenta = EstadoCuenta.ACTIVA;
+
     /** Rol del usuario en el sistema (RBAC). */
     @Enumerated(EnumType.STRING)
     @Column(name = "perimiso_user", nullable = false, length = 50)
@@ -92,6 +110,18 @@ public class User {
     /** Indica si el usuario era menor de edad al momento de registrarse. */
     @Column(name = "menor_edad", nullable = false)
     private boolean menorEdad;
+
+    /** Código estudiantil del usuario. */
+    @Column(name = "codigo_estudiantil", length = 50)
+    private String codigoEstudiantil;
+
+    /** Estado académico declarado en el registro. */
+    @Column(name = "estado_academico", length = 100)
+    private String estadoAcademico;
+
+    /** Proyecto curricular asociado al usuario. */
+    @Column(name = "proyecto_curricular", length = 150)
+    private String proyectoCurricular;
 
     /**
      * Archivo PDF de autorización del representante legal.

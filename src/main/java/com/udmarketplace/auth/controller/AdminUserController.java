@@ -5,6 +5,7 @@ import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.mapper.UserMapper;
 import com.udmarketplace.auth.model.AccionAuditoria;
+import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.security.JwtUtil;
@@ -175,10 +176,16 @@ public class AdminUserController {
                     .append("' → '").append(request.getGenero()).append("'; ");
             user.setGenero(request.getGenero());
         }
-        if (request.getActivo() != null) {
+                if (request.getEstadoCuenta() != null) {
+                        cambios.append("estadoCuenta: ").append(user.getEstadoCuenta())
+                                        .append(" → ").append(request.getEstadoCuenta()).append("; ");
+                        user.setEstadoCuenta(request.getEstadoCuenta());
+                        user.setActivo(request.getEstadoCuenta() == EstadoCuenta.ACTIVA);
+                } else if (request.getActivo() != null) {
             cambios.append("activo: ").append(user.isActivo())
                     .append(" → ").append(request.getActivo()).append("; ");
             user.setActivo(request.getActivo());
+                        user.setEstadoCuenta(request.getActivo() ? EstadoCuenta.ACTIVA : EstadoCuenta.DESHABILITADA);
         }
 
         userRepository.save(user);

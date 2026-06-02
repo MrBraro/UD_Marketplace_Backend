@@ -51,6 +51,14 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
     boolean existsByComprador_CodigoUsuaAndProducto_IdPubAndEstadoValoTrue(Long codigoComprador, Long idPub);
 
     /**
+     * Verifica si ya existe una valoración asociada a una compra concreta.
+     *
+     * @param idOrden identificador de la orden de compra
+     * @return {@code true} si ya hay una valoración registrada para la compra
+     */
+    boolean existsByOrden_IdOrden(Long idOrden);
+
+    /**
      * Calcula la calificación promedio de un producto a partir de sus valoraciones activas .
      *
      * @param idPub identificador del producto

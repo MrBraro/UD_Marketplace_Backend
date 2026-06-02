@@ -133,11 +133,13 @@ mvn spring-boot:run
 ## 4. Módulos implementados
 
 ### Auth
+- Registro de usuario con correo institucional `@udistrital.edu.co`, campos personales, académicos y rol solicitado
 - Login en dos pasos (credenciales → código 2FA por email)
 - Emisión de JWT con `userId`, `role` y `sub` (correo)
 - Logout con lista negra de tokens en base de datos
-- Registro de intentos fallidos con IP, fecha y hora
+- Registro de intentos fallidos con IP, fecha, hora e identificador de usuario cuando está disponible
 - Bloqueo temporal de cuenta (configurable: 5 intentos / 30 min)
+- Gestión administrativa del estado de cuenta (`ACTIVA`, `SUSPENDIDA`, `DESHABILITADA`) con bloqueo de autenticación en cuentas inhabilitadas
 - Perfil del usuario autenticado (`GET /me`)
 - Recuperación de contraseña con token de un solo uso (60 min)
 - Cambio de contraseña con validación del token de recuperación
@@ -173,9 +175,9 @@ mvn spring-boot:run
 
 ### Valoraciones
 - Registro de valoración con validación de compra confirmada previa
+- Unicidad por compra: no se permite registrar más de una valoración para la misma orden
 - Calificación entera del 1 al 5
 - Reseñas predefinidas opcionales seleccionables por el comprador
-- Preservación del historial: valoración anterior se inactiva antes de crear una nueva (no se sobrescribe)
 - Relación comprador-vendedor registrada explícitamente en cada valoración
 - Cálculo de calificación promedio por producto
 - Cálculo de reputación del vendedor (promedio de valoraciones activas)
@@ -192,11 +194,19 @@ mvn spring-boot:run
 | REQ-12 | JWT contiene `userId` del usuario autenticado | ✅ |
 | REQ-15 | Registro de intentos fallidos con IP, fecha y hora | ✅ |
 | REQ-16 | Bloqueo temporal tras 5 intentos fallidos (30 min) | ✅ |
+| **RF01** | Registro de usuario con datos personales, académicos y rol solicitado persistidos en `usuario` | ✅ (`POST /api/auth/register`) |
+| **RF02** | Rechazo de registro cuando el correo ya existe | ✅ (`POST /api/auth/register`) |
+| **RF03** | Rechazo de registro cuando el dominio del correo no es `@udistrital.edu.co` | ✅ (`POST /api/auth/register`) |
+| **RF07** | Asignación automática del rol inicial según el rol solicitado | ✅ (`POST /api/auth/register`) |
 | **RF17** | Retornar información de perfil del usuario autenticado | ✅ (`GET /api/auth/me`) |
-| **RF18** | Permitir que un administrador actualice la información de un usuario | ✅ (`PUT /api/admin/usuarios/{id}`) |
+| **RF18** | Permitir que un administrador actualice la información de un usuario y su estado administrativo | ✅ (`PUT /api/admin/usuarios/{id}`) |
+| **RF19** | Permitir que un administrador cambie el estado de una cuenta a `SUSPENDIDA` o `DESHABILITADA` | ✅ (`PUT /api/admin/usuarios/{id}`) |
 | **RF20** | Registrar solicitud de recuperación de contraseña por correo | ✅ (`POST /api/auth/recuperar-password`) |
 | **RF21** | Generar token único para cada solicitud de recuperación | ✅ (Token UUID de un solo uso) |
 | **RF22** | Permitir cambio de contraseña solo si el token es válido y no expirado | ✅ (`POST /api/auth/reset-password`) |
+| **RF62** | Impedir más de una valoración para la misma compra/orden | ✅ (`POST /api/buyer/valoraciones`) |
+| **RF64** | Asociar cada valoración registrada con el vendedor del producto valorado | ✅ (`POST /api/buyer/valoraciones`) |
+| **RF70** | Permitir marcar una valoración como inactiva | ✅ (`PATCH /api/admin/valoraciones/{id}/inactivar`) |
 | REQ-29 | Contador de productos activos por categoría | ✅ |
 | REQ-38 | Transacción asociada a comprador, vendedor y producto | ✅ |
 | REQ-39 | Actualización de estado al confirmar el vendedor | ✅ |
@@ -217,10 +227,12 @@ mvn spring-boot:run
 | **RF55** | Permitir que un administrador cierre una PQR registrada | ✅ (`PATCH /api/admin/pqrs/{radicado}/cerrar`) |
 | **RF56** | Restringir acceso a PQR solo al usuario creador y administradores | ✅ (Validación RBAC en servicio) |
 | REQ-65 | Reputación del vendedor como promedio de valoraciones | ✅ |
-| REQ-66 | Historial de valoraciones sin sobrescribir | ✅ |
+| REQ-66 | Una sola valoración por compra con unicidad lógica y persistente | ✅ |
 | REQ-67 | Relación comprador-vendedor en cada valoración | ✅ |
 | REQ-69 | Conteo de reseñas positivas (calificación ≥ 4) | ✅ |
 | REQ-69 | Índices en campos de búsqueda/filtrado | ✅ (en marketplace.sql) |
+| RNF07 | Registro de intentos fallidos de autenticación con IP, fecha, hora e identificador de usuario cuando existe | ✅ |
+| RNF09 | Código 2FA con expiración máxima de 10 minutos | ✅ |
 | RNF20 | Respaldos periódicos mínimos diarios de base de datos | ✅ (database/backup.*) |
 | **RNF16** | Documentar endpoints con descripción, entradas, respuestas y errores | ✅ (Especificación OpenAPI/Swagger) |
 | **RNF17** | Registrar auditoría de usuarios, transacciones y cierres de PQR | ✅ (Tabla `audit_log` y `AuditService`) |
@@ -266,6 +278,47 @@ mvn spring-boot:run
 | 200 | Credenciales válidas, código 2FA enviado |
 | 401 | Credenciales incorrectas |
 | 423 | Cuenta bloqueada temporalmente |
+
+---
+
+#### POST `/api/auth/register` — Registrar usuario
+
+**Acceso:** Público
+
+**Content-Type:** `multipart/form-data`
+
+**Partes:**
+- `datos` (JSON): `RegisterRequest`
+- `pdfAutorizacion` (file, opcional): requerido solo para usuarios menores de edad
+
+**Reglas de negocio:**
+- El correo institucional debe pertenecer al dominio `@udistrital.edu.co`
+- El correo no puede existir previamente en la base de datos
+- El rol inicial se asigna según el valor recibido en `permisoUser`
+- Si la persona es menor de edad, el PDF de autorización es obligatorio
+
+**Response 200:**
+```json
+{
+  "codigoUsua": 1,
+  "correoUsuario": "estudiante@udistrital.edu.co",
+  "rolUsua": "COMPRADOR",
+  "primerNombre": "Laura",
+  "segundoNombre": null,
+  "primerApellido": "Gómez",
+  "segundoApellido": null,
+  "genero": "Femenino",
+  "fechaNacimiento": "2000-06-15"
+}
+```
+
+**Códigos de respuesta:**
+
+| Código | Situación |
+|--------|-----------|
+| 200 | Usuario registrado exitosamente |
+| 400 | Datos inválidos, PDF faltante o archivo inválido |
+| 422 | Correo duplicado o dominio no permitido |
 
 ---
 
@@ -907,10 +960,11 @@ mvn spring-boot:run
 | Código | Situación |
 |--------|-----------|
 | 201 | Valoración registrada |
-| 422 | Orden no confirmada o no pertenece al comprador |
+| 400 | Datos inválidos |
+| 422 | Ya existe una valoración para esa compra o la orden no pertenece al comprador / no está confirmada |
 | 404 | Producto, orden o comprador no encontrado |
 
-> Si el comprador ya tenía una valoración activa para ese producto, se inactiva automáticamente (historial preservado) y se crea la nueva.
+> Si ya existe una valoración asociada a la misma orden de compra, la solicitud se rechaza para mantener la unicidad persistente.
 
 ---
 
