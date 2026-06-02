@@ -70,6 +70,13 @@ public class SecurityConfig {
                             "/api/auth/reset-password"
                     ).permitAll()
 
+                    // Swagger UI y OpenAPI docs
+                    .requestMatchers(
+                            "/swagger-ui.html",
+                            "/swagger-ui/**",
+                            "/v3/api-docs/**"
+                    ).permitAll()
+
                     // Endpoints públicos de catálogo y valoraciones
                     .requestMatchers(
                             "/api/categorias",

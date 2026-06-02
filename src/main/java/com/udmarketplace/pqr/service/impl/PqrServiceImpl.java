@@ -2,9 +2,11 @@ package com.udmarketplace.pqr.service.impl;
 
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
+import com.udmarketplace.auth.model.AccionAuditoria;
 import com.udmarketplace.auth.model.Administrador;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
+import com.udmarketplace.auth.service.AuditService;
 import com.udmarketplace.pqr.dto.AgregarInteraccionRequest;
 import com.udmarketplace.pqr.dto.CrearPqrRequest;
 import com.udmarketplace.pqr.dto.InteraccionDto;
@@ -58,6 +60,9 @@ public class PqrServiceImpl implements PqrService {
 
     /** Repositorio de usuarios para obtener el creador de la PQR y los administradores. */
     private final UserRepository userRepository;
+
+    /** Servicio de auditoría para registrar cierres de PQR (REQ-06). */
+    private final AuditService auditService;
 
     /**
      * {@inheritDoc}
@@ -162,8 +167,23 @@ public class PqrServiceImpl implements PqrService {
         } catch (IllegalArgumentException e) {
             throw new OperacionNoPermitidaException("Estado inválido: " + nuevoEstado + ". Valores: ENVIADA, EN_PROCESO, CERRADA");
         }
+        String estadoAnterior = pqr.getEstadoPqr();
         pqr.setEstadoPqr(nuevoEstado);
-        return toDto(pqrRepository.save(pqr));
+        PqrDto resultado = toDto(pqrRepository.save(pqr));
+
+        // Auditoría: registrar cierre de PQR (REQ-06)
+        if (EstadoPqr.CERRADA.name().equals(nuevoEstado)) {
+            User admin = userRepository.findById(codigoAdmin).orElse(null);
+            auditService.registrar(
+                    AccionAuditoria.PQR_CERRADA,
+                    "Pqr",
+                    radicado,
+                    codigoAdmin,
+                    admin != null ? admin.getCorreoUsuario() : "desconocido",
+                    "Estado: " + estadoAnterior + " → CERRADA"
+            );
+        }
+        return resultado;
     }
 
     /** {@inheritDoc} */
