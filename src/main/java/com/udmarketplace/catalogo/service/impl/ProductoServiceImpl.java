@@ -120,6 +120,48 @@ public class ProductoServiceImpl implements ProductoService {
                 .stream().map(this::toDto).toList();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Valida que el vendedor exista antes de buscar sus productos. Si el vendedor no existe,
+     * lanza {@link RecursoNoEncontradoException} que se convierte a HTTP 404 en el controlador.
+     * Si el vendedor existe pero no tiene productos activos, retorna una lista vacía que el
+     * controlador convierte a HTTP 204.
+     *
+     * <p><b>Estrategia de prueba:</b>
+     * <ul>
+     *   <li><b>Pruebas de API:</b>
+     *     <ul>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente con productos → HTTP 200 + lista de productos</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente sin productos → HTTP 204</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor inexistente → HTTP 404</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=precio_asc → productos ordenados por precio ascendente</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=nombre → productos ordenados alfabéticamente</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>Pruebas de base de datos:</b>
+     *     <ul>
+     *       <li>Verificar relación Producto.vendedor → Vendedor (ManyToOne)</li>
+     *       <li>Validar integridad referencial: no se pueden crear productos con vendedor inexistente</li>
+     *       <li>Confirmar que solo se retornan productos con activoPub = true</li>
+     *       <li>Verificar que el contador de productos por vendedor es correcto</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     *
+     * @author Andrés Cerdas
+     * @since 2026-06-01
+     */
+    @Override
+    public List<ProductoDto> obtenerProductosPorVendedor(Long codigoVendedor, String ordenarPor) {
+        // Validar que el vendedor existe antes de buscar productos
+        obtenerVendedor(codigoVendedor);
+        
+        Sort sort = resolverOrden(ordenarPor);
+        return productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(codigoVendedor, sort)
+                .stream().map(this::toDto).toList();
+    }
+
     /** {@inheritDoc} */
     @Override
     public List<ProductoDto> buscarProductos(FiltroProductoRequest filtro) {
@@ -277,6 +319,16 @@ public class ProductoServiceImpl implements ProductoService {
 /**
  * Resuelve el criterio de ordenamiento solicitado a una instancia de {@link Sort}.
  *
+ * <p>Criterios soportados:
+ * <ul>
+ *   <li>{@code precio_asc} — precio ascendente</li>
+ *   <li>{@code precio_desc} — precio descendente</li>
+ *   <li>{@code nombre_asc} — nombre alfabético ascendente</li>
+ *   <li>{@code nombre_desc} — nombre alfabético descendente</li>
+ *   <li>{@code fecha_asc} — fecha de registro ascendente (más antiguos primero)</li>
+ *   <li>{@code fecha_desc} — fecha de registro descendente (más recientes primero, por defecto)</li>
+ * </ul>
+ *
  * @param criterio texto de ordenamiento recibido
  * @return criterio de ordenamiento aplicado
  */
@@ -290,8 +342,14 @@ private Sort resolverOrden(String criterio) {
             return Sort.by(Sort.Direction.ASC, "precioPub");
         case "precio_desc":
             return Sort.by(Sort.Direction.DESC, "precioPub");
+        case "nombre_asc":
         case "nombre":
             return Sort.by(Sort.Direction.ASC, "nombrePub");
+        case "nombre_desc":
+            return Sort.by(Sort.Direction.DESC, "nombrePub");
+        case "fecha_asc":
+            return Sort.by(Sort.Direction.ASC, "fechaRegistro");
+        case "fecha_desc":
         default:
             return Sort.by(Sort.Direction.DESC, "fechaRegistro");
     }
@@ -322,6 +380,19 @@ private Sort resolverOrden(String criterio) {
                 predicates.add(cb.like(cb.lower(root.get("ubicacion")), "%" + f.getUbicacion().toLowerCase() + "%"));
             if (f.getDisponibilidad() != null)
                 predicates.add(cb.equal(root.get("disponibilidad"), f.getDisponibilidad()));
+            
+            // Filtro de calificación mínima usando subquery
+            if (f.getCalificacionMin() != null) {
+                jakarta.persistence.criteria.Subquery<Double> subquery = query.subquery(Double.class);
+                jakarta.persistence.criteria.Root<com.udmarketplace.valoracion.model.Valoracion> valoracionRoot = subquery.from(com.udmarketplace.valoracion.model.Valoracion.class);
+                
+                subquery.select(cb.avg(valoracionRoot.get("calificacion")))
+                        .where(cb.equal(valoracionRoot.get("producto").get("idPub"), root.get("idPub")),
+                                cb.isTrue(valoracionRoot.get("estadoValo")));
+                
+                predicates.add(cb.greaterThanOrEqualTo(subquery, f.getCalificacionMin()));
+            }
+            
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
