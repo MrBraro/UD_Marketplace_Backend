@@ -2,9 +2,9 @@ package com.udmarketplace.catalogo.service.impl;
 
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
-import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.UserRepository;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.catalogo.dto.CrearProductoRequest;
 import com.udmarketplace.catalogo.dto.FiltroProductoRequest;
 import com.udmarketplace.catalogo.dto.ProductoDto;
@@ -31,13 +31,14 @@ import java.util.List;
  *
  * <p>Implementa el ciclo de vida completo de los productos con actualización automática
  * del contador de categorías, búsqueda dinámica mediante JPA Specifications,
- * ordenamiento configurable y soft-delete.
- *
+ * ordenamiento configurable, validación de imágenes (RNF08) y soft-delete.
+
  * <p>Todas las operaciones de escritura están anotadas con {@code @Transactional}
  * para garantizar la reversión ante fallos.
  *
  * @author Daniel Perez
- * @version 1.1
+ * @modified by Maria
+ * @version 1.2
  * @since 2026-05-28
  */
 @Service
@@ -56,10 +57,15 @@ public class ProductoServiceImpl implements ProductoService {
     /** Servicio de categorías para actualizar el contador de productos (REQ-04). */
     private final CategoriaService categoriaService;
 
+    /** Servicio de validación de archivos para validar imágenes (RNF08). */
+    private final FileValidationService fileValidationService;
+
+
     /**
      * {@inheritDoc}
      *
      * <p>Persiste la imagen como BLOB si se provee. Incrementa el contador de la categoría (REQ-04).
+     * Valida que la imagen sea un formato soportado, MIME type correcto y tamaño dentro del límite (RNF08).
      */
     @Override
     @Transactional
@@ -81,6 +87,8 @@ public class ProductoServiceImpl implements ProductoService {
                 .build();
 
         if (imagen != null && !imagen.isEmpty()) {
+            // RNF08: Validar tipo MIME, extensión y tamaño de la imagen
+            fileValidationService.validateImage(imagen);
             try {
                 producto.setImagenPub(imagen.getBytes());
             } catch (IOException e) {
@@ -144,9 +152,9 @@ public class ProductoServiceImpl implements ProductoService {
         Categoria nuevaCategoria = obtenerCategoria(request.getIdCategoria());
         producto.setCategoria(nuevaCategoria);
 
-        validarImagen(imagen);
-
         if (imagen != null && !imagen.isEmpty()) {
+            // RNF08: Validar tipo MIME, extensión y tamaño de la imagen
+            fileValidationService.validateImage(imagen);
             try {
                 producto.setImagenPub(imagen.getBytes());
             } catch (IOException e) {
@@ -300,7 +308,6 @@ private Sort resolverOrden(String criterio) {
     private Specification<Producto> construirFiltro(FiltroProductoRequest f) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
-            predicates.add(cb.isTrue(root.get("activoPub")));
 
             predicates.add(cb.isTrue(root.get("activoPub")));
             if (f.getNombre() != null && !f.getNombre().isBlank())
