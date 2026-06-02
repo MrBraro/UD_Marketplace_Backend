@@ -14,6 +14,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 import java.util.List;
 
 /**
@@ -36,6 +41,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "PQRs", description = "Endpoints para el registro, consulta e interacciones de Peticiones, Quejas y Reclamos (PQR)")
+@SecurityRequirement(name = "bearerAuth")
 public class PqrController {
 
     /** Servicio de negocio para la gestión de PQRs. */
@@ -54,6 +61,15 @@ public class PqrController {
      * @return DTO de la PQR creada con HTTP 201
      */
     @PostMapping("/pqrs")
+    @Operation(
+            summary = "Crear nueva PQR",
+            description = "Registra una nueva PQR con radicado único automático y asignación automática del administrador con menor carga de PQRs abiertas. Soporta un archivo adjunto PDF o imagen.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "PQR creada exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o archivo excede el tamaño límite (5MB)"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado")
+            }
+    )
     public ResponseEntity<PqrDto> crearPqr(
             @Valid @RequestPart("datos") CrearPqrRequest request,
             @RequestPart(value = "adjunto", required = false) MultipartFile adjunto,
@@ -70,6 +86,14 @@ public class PqrController {
      * @return lista de PQRs del usuario
      */
     @GetMapping("/pqrs")
+    @Operation(
+            summary = "Listar PQRs del usuario autenticado",
+            description = "Retorna el historial completo de PQRs creadas por el usuario actual.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Lista de PQRs obtenida exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado")
+            }
+    )
     public ResponseEntity<List<PqrDto>> listarPqrs(
             @RequestHeader("Authorization") String authHeader) {
         Long codigoUsuario = jwtUtil.extractUserId(authHeader.substring(7));
@@ -84,6 +108,16 @@ public class PqrController {
      * @return DTO completo de la PQR con su historial de interacciones
      */
     @GetMapping("/pqrs/{radicado}")
+    @Operation(
+            summary = "Obtener detalle de PQR",
+            description = "Consulta la información detallada de una PQR junto con su historial cronológico de mensajes. Solo accesible para el creador de la PQR o el administrador asignado.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Detalle de la PQR obtenido exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No tiene permiso para ver esta PQR"),
+                    @ApiResponse(responseCode = "404", description = "PQR no encontrada")
+            }
+    )
     public ResponseEntity<PqrDto> obtenerPqr(
             @PathVariable Long radicado,
             @RequestHeader("Authorization") String authHeader) {
@@ -101,6 +135,17 @@ public class PqrController {
      * @return DTO de la interacción registrada con HTTP 201
      */
     @PostMapping("/pqrs/{radicado}/interacciones")
+    @Operation(
+            summary = "Agregar interacción a PQR",
+            description = "Permite enviar un nuevo mensaje en el chat de la PQR. No se permiten mensajes en PQRs que ya estén CERRADAS.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Interacción agregada exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Operación no permitida - La PQR está cerrada o datos inválidos"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No es el creador de la PQR ni el administrador asignado"),
+                    @ApiResponse(responseCode = "404", description = "PQR no encontrada")
+            }
+    )
     public ResponseEntity<InteraccionDto> agregarInteraccion(
             @PathVariable Long radicado,
             @Valid @RequestBody AgregarInteraccionRequest request,
@@ -121,6 +166,17 @@ public class PqrController {
      */
     @PatchMapping("/admin/pqrs/{radicado}/estado")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(
+            summary = "Cambiar estado de PQR",
+            description = "Permite a un administrador actualizar el estado de una PQR (ej. a EN_PROCESO o CERRADA). Registra en la auditoría del sistema.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Estado cambiado exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Estado inválido"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Requiere rol ADMINISTRADOR"),
+                    @ApiResponse(responseCode = "404", description = "PQR no encontrada")
+            }
+    )
     public ResponseEntity<PqrDto> cambiarEstado(
             @PathVariable Long radicado,
             @RequestParam String estado,
@@ -139,6 +195,16 @@ public class PqrController {
      */
     @PatchMapping("/admin/pqrs/{radicado}/cerrar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(
+            summary = "Cerrar PQR",
+            description = "Cierra de forma definitiva una PQR. Esto bloquea cualquier interacción futura de forma permanente. Registra el evento en auditoría.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "PQR cerrada exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Requiere rol ADMINISTRADOR"),
+                    @ApiResponse(responseCode = "404", description = "PQR no encontrada")
+            }
+    )
     public ResponseEntity<PqrDto> cerrarPqr(
             @PathVariable Long radicado,
             @RequestHeader("Authorization") String authHeader) {
