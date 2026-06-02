@@ -15,7 +15,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Controlador REST para la administración de usuarios del sistema UD Marketplace.
@@ -37,6 +42,8 @@ import java.util.List;
 @RequestMapping("/api/admin/usuarios")
 @PreAuthorize("hasRole('ADMINISTRADOR')")
 @RequiredArgsConstructor
+@Tag(name = "Administración de Usuarios", description = "Endpoints para la gestión administrativa de usuarios")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminUserController {
 
     /** Repositorio de usuarios para operaciones CRUD. */
@@ -57,6 +64,15 @@ public class AdminUserController {
      * @return lista de usuarios en formato DTO sin datos sensibles
      */
     @GetMapping
+    @Operation(
+            summary = "Listar todos los usuarios",
+            description = "Retorna una lista completa de todos los usuarios registrados en el sistema. Solo accesible para administradores.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Lista de usuarios obtenida exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autorizado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Permisos insuficientes")
+            }
+    )
     public ResponseEntity<List<UserInfoResponse>> listarUsuarios() {
         List<UserInfoResponse> usuarios = userRepository.findAll()
                 .stream()
@@ -73,6 +89,16 @@ public class AdminUserController {
      * @throws RecursoNoEncontradoException si el usuario no existe
      */
     @GetMapping("/{id}")
+    @Operation(
+            summary = "Obtener detalle de usuario",
+            description = "Retorna la información de perfil detallada de un usuario por su código. Solo accesible para administradores.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Usuario encontrado y detalles retornados"),
+                    @ApiResponse(responseCode = "401", description = "No autorizado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Permisos insuficientes"),
+                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            }
+    )
     public ResponseEntity<UserInfoResponse> obtenerUsuario(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado: " + id));
@@ -92,6 +118,17 @@ public class AdminUserController {
      * @throws RecursoNoEncontradoException si el usuario no existe
      */
     @PutMapping("/{id}")
+    @Operation(
+            summary = "Actualizar información de usuario",
+            description = "Permite a un administrador actualizar de manera parcial o total la información de un usuario. Registra un evento en auditoría.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Usuario actualizado exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                    @ApiResponse(responseCode = "401", description = "No autorizado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Permisos insuficientes"),
+                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            }
+    )
     public ResponseEntity<UserInfoResponse> actualizarUsuario(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request,
