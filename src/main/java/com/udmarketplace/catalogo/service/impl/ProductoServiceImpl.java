@@ -110,6 +110,48 @@ public class ProductoServiceImpl implements ProductoService {
                 .stream().map(this::toDto).toList();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Valida que el vendedor exista antes de buscar sus productos. Si el vendedor no existe,
+     * lanza {@link RecursoNoEncontradoException} que se convierte a HTTP 404 en el controlador.
+     * Si el vendedor existe pero no tiene productos activos, retorna una lista vacía que el
+     * controlador convierte a HTTP 204.
+     *
+     * <p><b>Estrategia de prueba:</b>
+     * <ul>
+     *   <li><b>Pruebas de API:</b>
+     *     <ul>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente con productos → HTTP 200 + lista de productos</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente sin productos → HTTP 204</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor inexistente → HTTP 404</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=precio_asc → productos ordenados por precio ascendente</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=nombre → productos ordenados alfabéticamente</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>Pruebas de base de datos:</b>
+     *     <ul>
+     *       <li>Verificar relación Producto.vendedor → Vendedor (ManyToOne)</li>
+     *       <li>Validar integridad referencial: no se pueden crear productos con vendedor inexistente</li>
+     *       <li>Confirmar que solo se retornan productos con activoPub = true</li>
+     *       <li>Verificar que el contador de productos por vendedor es correcto</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     *
+     * @author Andrés Cerdas
+     * @since 2026-06-01
+     */
+    @Override
+    public List<ProductoDto> obtenerProductosPorVendedor(Long codigoVendedor, String ordenarPor) {
+        // Validar que el vendedor existe antes de buscar productos
+        obtenerVendedor(codigoVendedor);
+        
+        Sort sort = resolverOrden(ordenarPor);
+        return productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(codigoVendedor, sort)
+                .stream().map(this::toDto).toList();
+    }
+
     /** {@inheritDoc} */
     @Override
     public List<ProductoDto> buscarProductos(FiltroProductoRequest filtro) {
