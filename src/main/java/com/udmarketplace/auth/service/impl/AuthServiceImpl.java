@@ -11,10 +11,13 @@ import com.udmarketplace.auth.exception.InvalidCredentialsException;
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.TwoFactorException;
 import com.udmarketplace.auth.mapper.UserMapper;
+import com.udmarketplace.auth.model.Administrador;
+import com.udmarketplace.auth.model.Comprador;
 import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.IntentoFallidoAuth;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Role;
+import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.IntentoFallidoAuthRepository;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.security.JwtUtil;
@@ -134,7 +137,7 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
         fileValidationService.validatePdf(pdfAutorizacion);
     }
 
-    User user = new User();
+    User user = crearSubtipoUsuario(rol);
     user.setPrimerNombre(request.getPrimerNombre());
     user.setSegundoNombre(request.getSegundoNombre());
     user.setPrimerApellido(request.getPrimerApellido());
@@ -278,6 +281,22 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
     }
 
     /**
+     * Instancia el subtipo correcto de usuario según el rol.
+     * Es imprescindible para que JPA JOINED inheritance cree la fila en la tabla del subtipo.
+     */
+    private User crearSubtipoUsuario(Role rol) {
+        return switch (rol) {
+            case VENDEDOR -> {
+                Vendedor v = new Vendedor();
+                v.setCalificacion(java.math.BigDecimal.ZERO);
+                yield v;
+            }
+            case COMPRADOR -> new Comprador();
+            case ADMINISTRADOR -> new Administrador();
+        };
+    }
+
+    /**
      * Determina si una persona es menor de edad con base en su fecha de nacimiento.
      *
      * @param fechaNacimiento fecha de nacimiento del usuario
@@ -288,24 +307,6 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
             throw new IllegalArgumentException("La fecha de nacimiento es obligatoria");
         }
         return Period.between(fechaNacimiento, LocalDate.now()).getYears() < 18;
-    }
-
-    // Métodos privados de auditoría y control de acceso
-    
-    /**
-     * Persiste un registro de intento de autenticación para auditoría (REQ-02).
-     *
-     * @param correo   correo electrónico utilizado en el intento
-     * @param ip       dirección IP de origen de la solicitud
-     * @param exitoso  {@code true} si el intento fue exitoso
-     */
-    private void registrarIntento(String correo, String ip, boolean exitoso) {
-        intentoFallidoRepo.save(IntentoFallidoAuth.builder()
-                .correoIntentado(correo)
-                .ipOrigen(ip)
-                .fechaHora(LocalDateTime.now())
-                .exitoso(exitoso)
-                .build());
     }
 
     /**

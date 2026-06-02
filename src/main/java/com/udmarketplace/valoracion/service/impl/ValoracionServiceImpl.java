@@ -65,8 +65,12 @@ public class ValoracionServiceImpl implements ValoracionService {
     @Override
     @Transactional
     public ValoracionDto registrarValoracion(CrearValoracionRequest request, Long codigoComprador) {
-        Comprador comprador = (Comprador) userRepository.findById(codigoComprador)
+        com.udmarketplace.auth.model.User usuarioBase = userRepository.findById(codigoComprador)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Comprador no encontrado"));
+        if (!(usuarioBase instanceof Comprador)) {
+            throw new com.udmarketplace.auth.exception.OperacionNoPermitidaException("El usuario no tiene rol de Comprador");
+        }
+        Comprador comprador = (Comprador) usuarioBase;
 
         Producto producto = productoRepository.findById(request.getIdPub())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
@@ -119,13 +123,17 @@ public class ValoracionServiceImpl implements ValoracionService {
     /** {@inheritDoc} */
     @Override
     public ReputacionVendedorDto obtenerReputacionVendedor(Long codigoVendedor) {
-        Vendedor vendedor = (Vendedor) userRepository.findById(codigoVendedor)
+        com.udmarketplace.auth.model.User usuarioBase = userRepository.findById(codigoVendedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Vendedor no encontrado"));
+        if (!(usuarioBase instanceof Vendedor)) {
+            throw new com.udmarketplace.auth.exception.OperacionNoPermitidaException("El usuario no tiene rol de Vendedor");
+        }
+        Vendedor vendedor = (Vendedor) usuarioBase;
 
         Double promedio = valoracionRepository.calcularReputacionVendedor(codigoVendedor);
         // REQ-19: reseñas positivas (calificación >= 4)
         long positivas = valoracionRepository.contarResenasPositivas(codigoVendedor);
-        long total = valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(codigoVendedor).size();
+        long total = valoracionRepository.contarValoracionesActivasVendedor(codigoVendedor);
 
         return ReputacionVendedorDto.builder()
                 .idVendedor(codigoVendedor)

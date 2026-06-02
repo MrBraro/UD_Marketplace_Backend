@@ -5,9 +5,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -88,6 +90,23 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /** 400 — Parte multipart obligatoria ausente (ej: PDF de autorización). */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMissingPart(MissingServletRequestPartException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, "Falta parte obligatoria en la solicitud: " + ex.getRequestPartName());
+    }
+
+    /** 401 — Header Authorization ausente en solicitud que lo requiere. */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleMissingHeader(MissingRequestHeaderException ex) {
+        if ("Authorization".equalsIgnoreCase(ex.getHeaderName())) {
+            return buildError(HttpStatus.UNAUTHORIZED, "Token de autorización requerido");
+        }
+        return buildError(HttpStatus.BAD_REQUEST, "Header requerido ausente: " + ex.getHeaderName());
     }
 
     /** 423 — Cuenta bloqueada temporalmente por intentos fallidos (REQ-03). */

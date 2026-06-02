@@ -2,11 +2,14 @@ package com.udmarketplace.auth.service.impl;
 
 import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.dto.UserSummaryResponse;
+import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
+import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.service.UserAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -37,7 +40,7 @@ public class UserAdminServiceImpl implements UserAdminService {
     @Override
     public UserInfoResponse getUserById(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con ID: " + userId));
 
         return new UserInfoResponse(
                 user.getCodigoUsua(),
@@ -55,33 +58,34 @@ public class UserAdminServiceImpl implements UserAdminService {
     @Override
     public byte[] getPermisoMenorPdf(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con ID: " + userId));
 
         if (!user.isMenorEdad()) {
-            throw new RuntimeException("El usuario no está registrado como menor de edad");
+            throw new OperacionNoPermitidaException("El usuario no está registrado como menor de edad");
         }
 
         if (user.getPermisoUserMenor() == null) {
-            throw new RuntimeException("El PDF de autorización no se encuentra disponible");
+            throw new RecursoNoEncontradoException("El PDF de autorización no se encuentra disponible");
         }
 
         return user.getPermisoUserMenor();
     }
 
     @Override
+    @Transactional
     public void updatePermisoMenorPdf(Long userId, MultipartFile pdfAutorizacion) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con ID: " + userId));
 
         if (!user.isMenorEdad()) {
-            throw new RuntimeException("El usuario no está registrado como menor de edad");
+            throw new OperacionNoPermitidaException("El usuario no está registrado como menor de edad");
         }
 
         try {
             user.setPermisoUserMenor(pdfAutorizacion.getBytes());
             userRepository.save(user);
         } catch (IOException e) {
-            throw new RuntimeException("Error al procesar el archivo PDF", e);
+            throw new OperacionNoPermitidaException("Error al procesar el archivo PDF");
         }
     }
 }

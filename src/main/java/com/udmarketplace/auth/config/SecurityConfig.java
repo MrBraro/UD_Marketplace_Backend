@@ -3,6 +3,7 @@ package com.udmarketplace.auth.config;
 import com.udmarketplace.auth.security.JwtFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,8 +19,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Configuración central de Spring Security para el sistema UD Marketplace.
@@ -53,6 +58,10 @@ public class SecurityConfig {
     /** Filtro JWT que valida el token en cada solicitud entrante. */
     private final JwtFilter jwtFilter;
 
+    /** Orígenes permitidos para CORS (frontend y backend Python). Configurable por entorno. */
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5000,http://localhost:5173}")
+    private String allowedOriginsRaw;
+
     /**
      * Define la cadena de filtros de seguridad con las reglas de autorización por rol y endpoint.
      *
@@ -68,6 +77,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -130,6 +140,25 @@ public class SecurityConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Configura CORS para permitir peticiones desde el frontend y el backend Python.
+     * Los orígenes se configuran mediante {@code app.cors.allowed-origins}.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        List<String> origins = List.of(allowedOriginsRaw.split(","));
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     /**

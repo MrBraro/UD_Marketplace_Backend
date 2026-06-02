@@ -242,8 +242,12 @@ public class ProductoServiceImpl implements ProductoService {
      * @return entidad Vendedor
      */
     private Vendedor obtenerVendedor(Long codigoVendedor) {
-        return (Vendedor) userRepository.findById(codigoVendedor)
+        com.udmarketplace.auth.model.User user = userRepository.findById(codigoVendedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Vendedor no encontrado"));
+        if (!(user instanceof Vendedor)) {
+            throw new OperacionNoPermitidaException("El usuario no tiene rol de Vendedor");
+        }
+        return (Vendedor) user;
     }
 
     /**
@@ -283,40 +287,7 @@ public class ProductoServiceImpl implements ProductoService {
         }
     }
 
-   /**
-     * Valida la imagen enviada.
-     *
-     * <p>Permite JPG, PNG o WEBP con tamaño máximo de 5 MB.
-     *
-     * @param imagen archivo de imagen
-     */
-    private void validarImagen(MultipartFile imagen) {
-        if (imagen == null || imagen.isEmpty()) {
-            return;
-        }
-
-        String contentType = imagen.getContentType();
-        if (contentType == null ||
-                (!contentType.equalsIgnoreCase("image/jpeg")
-                        && !contentType.equalsIgnoreCase("image/png")
-                        && !contentType.equalsIgnoreCase("image/webp"))) {
-            throw new OperacionNoPermitidaException("Formato de imagen no permitido. Use JPG, PNG o WEBP");
-        }
-
-        long maxBytes = 5 * 1024 * 1024;
-        if (imagen.getSize() > maxBytes) {
-            throw new OperacionNoPermitidaException("La imagen supera el tamaño máximo permitido de 5 MB");
-        }
-    }
     /**
-     * Resuelve el criterio de ordenamiento textual a un objeto {@link Sort} de Spring Data.
-     * Valores soportados: {@code precio_asc}, {@code precio_desc}, {@code nombre}.
-     * Cualquier otro valor o {@code null} usa ordenamiento por fecha descendente.
-     *
-     * @param criterio criterio de ordenamiento recibido como parámetro de consulta
-     * @return objeto Sort configurado para la consulta
-     */
-/**
  * Resuelve el criterio de ordenamiento solicitado a una instancia de {@link Sort}.
  *
  * <p>Criterios soportados:

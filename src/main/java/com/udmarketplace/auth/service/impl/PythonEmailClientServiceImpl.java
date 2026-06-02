@@ -72,8 +72,9 @@ public class PythonEmailClientServiceImpl implements PythonEmailClientService {
             restTemplate.postForObject(url, payload, Void.class);
             log.info("[PYTHON-EMAIL] Correo de recuperación enviado a: {}", destinatario);
         } catch (RestClientException e) {
-            // Stub de simulación: loguea el token para pruebas cuando Python no está disponible
-            log.warn("[PYTHON-EMAIL-STUB] Python no disponible. Token de recuperación para {}: {}", destinatario, token);
+            // En desarrollo: loguea el token a nivel DEBUG para facilitar pruebas sin Python
+            log.warn("[PYTHON-EMAIL-STUB] Python no disponible. Correo de recuperación no enviado a: {}", destinatario);
+            log.debug("[PYTHON-EMAIL-STUB] Token de recuperación (solo desarrollo): {}", token);
         }
     }
 

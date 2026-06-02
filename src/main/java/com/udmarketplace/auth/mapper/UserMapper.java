@@ -28,7 +28,7 @@ public class UserMapper {
         return new UserInfoResponse(
                 user.getCodigoUsua(),
                 user.getCorreoUsuario(),
-                user.getRolUsua().name(),
+                user.getRolUsua() != null ? user.getRolUsua().name() : null,
                 user.getPrimerNombre(),
                 user.getSegundoNombre(),
                 user.getPrimerApellido(),

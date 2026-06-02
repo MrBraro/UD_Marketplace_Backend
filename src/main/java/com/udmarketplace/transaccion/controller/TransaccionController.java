@@ -104,43 +104,65 @@ public class TransaccionController {
 
     /**
      * Retorna el detalle completo de una transacción por su identificador.
+     * Solo el comprador o el vendedor involucrados pueden acceder a la misma.
      *
-     * @param id identificador de la orden
+     * @param id         identificador de la orden
+     * @param authHeader header Authorization con el token Bearer del usuario
      * @return DTO completo de la transacción
      */
     @GetMapping("/transacciones/{id}")
     @Operation(
             summary = "Obtener detalle de transacción",
-            description = "Consulta la información completa de una transacción por su ID, incluyendo detalles de entrega si ya está confirmada.",
+            description = "Consulta la información completa de una transacción por su ID. Solo el comprador o vendedor involucrado puede acceder.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Detalle de transacción obtenido exitosamente"),
                     @ApiResponse(responseCode = "401", description = "No autenticado"),
-                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No tiene permisos para ver esta transacción"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No es el comprador ni el vendedor de esta transacción"),
                     @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
             }
     )
-    public ResponseEntity<TransaccionDto> obtenerTransaccion(@PathVariable Long id) {
-        return ResponseEntity.ok(transaccionService.obtenerTransaccion(id));
+    public ResponseEntity<TransaccionDto> obtenerTransaccion(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        Long userId = jwtUtil.extractUserId(authHeader.substring(7));
+        TransaccionDto dto = transaccionService.obtenerTransaccion(id);
+        boolean esComprador = userId.equals(dto.getIdComprador());
+        boolean esVendedor = dto.getIdVendedor() != null && userId.equals(dto.getIdVendedor());
+        if (!esComprador && !esVendedor) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
     /**
      * Consulta el historial de transacciones con filtros opcionales.
-     * Los parámetros se pasan como query parameters y todos son opcionales.
+     * Compradores solo ven sus propias compras; vendedores sus propias ventas;
+     * administradores pueden filtrar libremente.
      *
-     * @param filtro parámetros de filtrado (comprador, vendedor, estado, rango de fechas)
+     * @param filtro     parámetros de filtrado (estado, rango de fechas)
+     * @param authHeader header Authorization con el token Bearer del usuario
      * @return lista de transacciones que coinciden con los filtros aplicados
      */
     @GetMapping("/transacciones")
     @Operation(
             summary = "Consultar historial de transacciones",
-            description = "Retorna una lista de transacciones filtradas por comprador, vendedor, estado, y rango de fechas.",
+            description = "Retorna transacciones del usuario autenticado. Compradores ven sus compras, vendedores sus ventas, administradores pueden filtrar por cualquier usuario.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Historial consultado exitosamente"),
                     @ApiResponse(responseCode = "401", description = "No autenticado")
             }
     )
     public ResponseEntity<List<TransaccionDto>> consultarHistorial(
-            @ModelAttribute FiltroHistorialRequest filtro) {
+            @ModelAttribute FiltroHistorialRequest filtro,
+            @RequestHeader("Authorization") String authHeader) {
+        Long userId = jwtUtil.extractUserId(authHeader.substring(7));
+        String role = jwtUtil.extractRole(authHeader.substring(7));
+        if ("COMPRADOR".equals(role)) {
+            filtro.setCodigoComprador(userId);
+        } else if ("VENDEDOR".equals(role)) {
+            filtro.setCodigoVendedor(userId);
+        }
+        // ADMINISTRADOR puede filtrar libremente
         return ResponseEntity.ok(transaccionService.consultarHistorial(filtro));
     }
 }

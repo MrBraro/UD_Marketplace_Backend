@@ -56,10 +56,8 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-
     public CategoriaDto crearCategoria(CrearCategoriaRequest request, Long codigoAdmin) {
- Administrador admin = (Administrador) userRepository.findById(codigoAdmin)
-        .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
+        Administrador admin = obtenerAdministrador(codigoAdmin);
         String nombreNormalizado = request.getNombreCat().trim();
 
         if (categoriaRepository.existsByNombreCatIgnoreCaseAndActivoCatTrue(nombreNormalizado)) {
