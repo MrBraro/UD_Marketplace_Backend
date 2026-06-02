@@ -60,6 +60,7 @@ class TransaccionServiceImplTest {
         u.setCodigoUsua(id);
         u.setPrimerNombre("María");
         u.setPrimerApellido("Torres");
+        u.setActivo(true);
         return u;
     }
 
@@ -133,6 +134,43 @@ class TransaccionServiceImplTest {
     }
 
     @Test
+    void registrarIntencioneCompra_compradorInactivo_lanzaExcepcion() {
+        User comprador = comprador(1L);
+        comprador.setActivo(false);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
+
+        CrearTransaccionRequest request = new CrearTransaccionRequest();
+        request.setIdPub(10L);
+
+        assertThatThrownBy(() -> service.registrarIntencioneCompra(request, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessageContaining("comprador no está activo");
+
+        verify(productoRepository, never()).findById(anyLong());
+        verify(ordenRepository, never()).save(any());
+    }
+
+    @Test
+    void registrarIntencioneCompra_productoPropio_lanzaExcepcion() {
+        User comprador = comprador(1L);
+        Vendedor vendedor = vendedor(1L);
+        Producto producto = productoDisponible(10L, vendedor);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
+        when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
+
+        CrearTransaccionRequest request = new CrearTransaccionRequest();
+        request.setIdPub(10L);
+
+        assertThatThrownBy(() -> service.registrarIntencioneCompra(request, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessageContaining("propio producto");
+
+        verify(ordenRepository, never()).save(any());
+    }
+
+    @Test
     void registrarIntencioneCompra_productoInactivo_lanzaExcepcion() {
         User comprador = comprador(1L);
         Producto inactivo = Producto.builder()
@@ -190,7 +228,7 @@ class TransaccionServiceImplTest {
     }
 
     @Test
-    void confirmarTransaccion_confirmacionDigitalTieneFormato() {
+    void confirmarTransaccion_confirmacionDigitalTieneFormatoYSeRetornaEnDto() {
         User comprador = comprador(1L);
         Vendedor vendedor = vendedor(2L);
         Producto producto = productoDisponible(10L, vendedor);
@@ -201,15 +239,19 @@ class TransaccionServiceImplTest {
         when(ordenRepository.save(any())).thenReturn(orden);
         when(detalleRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.confirmarTransaccion(100L, 2L);
+        TransaccionDto result = service.confirmarTransaccion(100L, 2L);
 
-        // Verificar que el detalle se guardó con confirmación digital en el formato esperado
+        assertThat(result.getDetalleEntrega()).isNotNull();
+        assertThat(result.getDetalleEntrega().getConfirmacionDigital())
+                .matches("^CONF-100-[0-9A-F]{8}$");
+        assertThat(result.getDetalleEntrega().getFechaGeneracion()).isNotNull();
+
         verify(detalleRepo).save(argThat(d ->
                 d.getConfirmacionDigital() != null &&
-                d.getConfirmacionDigital().startsWith("CONF-")
+                d.getConfirmacionDigital().matches("^CONF-100-[0-9A-F]{8}$") &&
+                d.getFechaGeneracion() != null
         ));
     }
-
     @Test
     void confirmarTransaccion_estadoNoPendiente_lanzaExcepcion() {
         User comprador = comprador(1L);
