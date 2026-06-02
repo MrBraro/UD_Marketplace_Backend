@@ -12,6 +12,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 import java.util.List;
 
 /**
@@ -32,6 +37,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "Transacciones", description = "Endpoints para el registro de intenciones de compra, confirmación de pedidos e historial de transacciones")
+@SecurityRequirement(name = "bearerAuth")
 public class TransaccionController {
 
     /** Servicio de negocio para la gestión de transacciones. */
@@ -50,6 +57,16 @@ public class TransaccionController {
      */
     @PostMapping("/buyer/transacciones")
     @PreAuthorize("hasRole('COMPRADOR')")
+    @Operation(
+            summary = "Registrar intención de compra",
+            description = "Permite a un comprador iniciar una transacción para adquirir un producto. La orden se crea en estado PENDIENTE. Requiere rol COMPRADOR.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Intención de compra registrada exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "El producto no está disponible o datos inválidos"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Requiere rol COMPRADOR")
+            }
+    )
     public ResponseEntity<TransaccionDto> registrarCompra(
             @Valid @RequestBody CrearTransaccionRequest request,
             @RequestHeader("Authorization") String authHeader) {
@@ -68,6 +85,16 @@ public class TransaccionController {
      */
     @PostMapping("/seller/transacciones/{id}/confirmar")
     @PreAuthorize("hasRole('VENDEDOR')")
+    @Operation(
+            summary = "Confirmar transacción (Vendedor)",
+            description = "Permite al vendedor del producto confirmar la venta. Al hacerlo, la transacción pasa a estado CONFIRMADA y se genera el detalle de entrega digital. Registra evento en auditoría. Requiere rol VENDEDOR.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Transacción confirmada exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No es el vendedor propietario del producto o permisos insuficientes"),
+                    @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
+            }
+    )
     public ResponseEntity<TransaccionDto> confirmarTransaccion(
             @PathVariable Long id,
             @RequestHeader("Authorization") String authHeader) {
@@ -82,6 +109,16 @@ public class TransaccionController {
      * @return DTO completo de la transacción
      */
     @GetMapping("/transacciones/{id}")
+    @Operation(
+            summary = "Obtener detalle de transacción",
+            description = "Consulta la información completa de una transacción por su ID, incluyendo detalles de entrega si ya está confirmada.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Detalle de transacción obtenido exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - No tiene permisos para ver esta transacción"),
+                    @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
+            }
+    )
     public ResponseEntity<TransaccionDto> obtenerTransaccion(@PathVariable Long id) {
         return ResponseEntity.ok(transaccionService.obtenerTransaccion(id));
     }
@@ -94,6 +131,14 @@ public class TransaccionController {
      * @return lista de transacciones que coinciden con los filtros aplicados
      */
     @GetMapping("/transacciones")
+    @Operation(
+            summary = "Consultar historial de transacciones",
+            description = "Retorna una lista de transacciones filtradas por comprador, vendedor, estado, y rango de fechas.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Historial consultado exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado")
+            }
+    )
     public ResponseEntity<List<TransaccionDto>> consultarHistorial(
             @ModelAttribute FiltroHistorialRequest filtro) {
         return ResponseEntity.ok(transaccionService.consultarHistorial(filtro));

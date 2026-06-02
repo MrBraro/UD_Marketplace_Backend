@@ -278,4 +278,23 @@ INSERT INTO `resena_predefinida` (texto_resena, activo) VALUES
     ('No cumplió mis expectativas', TRUE),
     ('Producto con defectos, no recomendado', TRUE);
 
-SELECT * FROM `resena_predefinida`;
+-- ────────────────────────────────────────────────────
+-- 7. AUDITORÍA
+-- ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `audit_log` (
+    id              BIGINT          AUTO_INCREMENT PRIMARY KEY,
+    accion          VARCHAR(50)     NOT NULL COMMENT 'USUARIO_CREADO, USUARIO_MODIFICADO, TRANSACCION_ESTADO_CAMBIADO, PQR_CERRADA',
+    entidad         VARCHAR(100)    NOT NULL COMMENT 'Nombre de la entidad afectada (User, Orden, Pqr)',
+    entidad_id      BIGINT          COMMENT 'ID de la entidad afectada',
+    usuario_id      BIGINT          COMMENT 'ID del usuario que ejecutó la acción',
+    usuario_email   VARCHAR(255)    COMMENT 'Email del usuario que ejecutó la acción',
+    detalle         TEXT            COMMENT 'Descripción del cambio realizado',
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_audit_accion    (accion),
+    INDEX idx_audit_entidad   (entidad, entidad_id),
+    INDEX idx_audit_usuario   (usuario_id),
+    INDEX idx_audit_fecha     (created_at)
+) ENGINE=InnoDB;
+
+SELECT * FROM `resena_predefinida`;

@@ -60,6 +60,19 @@ public interface ProductoService {
     List<ProductoDto> listarProductosVendedor(Long codigoVendedor, String ordenarPor);
 
     /**
+     * Obtiene los productos activos de un vendedor específico validando que el vendedor exista.
+     * Este método está diseñado para endpoints públicos donde se recibe el ID del vendedor como parámetro.
+     *
+     * @param codigoVendedor identificador del vendedor
+     * @param ordenarPor     criterio de ordenamiento (nullable, por defecto: fecha_desc)
+     * @return lista de productos activos del vendedor
+     * @throws com.udmarketplace.auth.exception.RecursoNoEncontradoException si el vendedor no existe
+     * @author Andrés Cerdas
+     * @since 2026-06-01
+     */
+    List<ProductoDto> obtenerProductosPorVendedor(Long codigoVendedor, String ordenarPor);
+
+    /**
      * Busca productos aplicando los filtros recibidos (nombre, categoría, precio,
      * ubicación, disponibilidad) con ordenamiento dinámico (REQ catálogo).
      *

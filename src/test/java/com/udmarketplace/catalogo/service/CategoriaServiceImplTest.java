@@ -135,7 +135,9 @@ class CategoriaServiceImplTest {
 
     @Test
     void inactivarCategoria_setActivoCatFalse() {
+        Administrador admin = admin(1L);
         Categoria c = categoria(3L, true, 0);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
         when(categoriaRepository.findById(3L)).thenReturn(Optional.of(c));
         when(categoriaRepository.save(any())).thenReturn(c);
 
@@ -147,6 +149,8 @@ class CategoriaServiceImplTest {
 
     @Test
     void inactivarCategoria_noEncontrada_lanzaExcepcion() {
+        Administrador admin = admin(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
         when(categoriaRepository.findById(99L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.inactivarCategoria(99L, 1L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
