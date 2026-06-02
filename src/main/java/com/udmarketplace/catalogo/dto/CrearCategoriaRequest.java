@@ -5,11 +5,16 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * DTO de solicitud para la creación de una nueva categoría en el catálogo.
- * Solo usuarios con rol {@code ADMINISTRADOR} pueden enviar esta solicitud.
+ * DTO de solicitud para crear una nueva categoría.
+ *
+ * <p>Se utiliza en el registro de categorías por parte de usuarios con rol
+ * administrador. Contiene los datos mínimos de negocio para cumplir RF28.
+ *
+ * <p>La descripción es opcional, pero el nombre es obligatorio porque identifica
+ * de forma legible la categoría en el catálogo.
  *
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Data
@@ -21,6 +26,6 @@ public class CrearCategoriaRequest {
     private String nombreCat;
 
     /** Descripción opcional de la categoría (máximo 500 caracteres). */
-    @Size(max = 500)
+    @Size(max = 500, message = "La descripción no puede superar los 500 caracteres")
     private String descripcionCat;
 }
