@@ -319,6 +319,16 @@ public class ProductoServiceImpl implements ProductoService {
 /**
  * Resuelve el criterio de ordenamiento solicitado a una instancia de {@link Sort}.
  *
+ * <p>Criterios soportados:
+ * <ul>
+ *   <li>{@code precio_asc} — precio ascendente</li>
+ *   <li>{@code precio_desc} — precio descendente</li>
+ *   <li>{@code nombre_asc} — nombre alfabético ascendente</li>
+ *   <li>{@code nombre_desc} — nombre alfabético descendente</li>
+ *   <li>{@code fecha_asc} — fecha de registro ascendente (más antiguos primero)</li>
+ *   <li>{@code fecha_desc} — fecha de registro descendente (más recientes primero, por defecto)</li>
+ * </ul>
+ *
  * @param criterio texto de ordenamiento recibido
  * @return criterio de ordenamiento aplicado
  */
@@ -332,8 +342,14 @@ private Sort resolverOrden(String criterio) {
             return Sort.by(Sort.Direction.ASC, "precioPub");
         case "precio_desc":
             return Sort.by(Sort.Direction.DESC, "precioPub");
+        case "nombre_asc":
         case "nombre":
             return Sort.by(Sort.Direction.ASC, "nombrePub");
+        case "nombre_desc":
+            return Sort.by(Sort.Direction.DESC, "nombrePub");
+        case "fecha_asc":
+            return Sort.by(Sort.Direction.ASC, "fechaRegistro");
+        case "fecha_desc":
         default:
             return Sort.by(Sort.Direction.DESC, "fechaRegistro");
     }
@@ -364,6 +380,19 @@ private Sort resolverOrden(String criterio) {
                 predicates.add(cb.like(cb.lower(root.get("ubicacion")), "%" + f.getUbicacion().toLowerCase() + "%"));
             if (f.getDisponibilidad() != null)
                 predicates.add(cb.equal(root.get("disponibilidad"), f.getDisponibilidad()));
+            
+            // Filtro de calificación mínima usando subquery
+            if (f.getCalificacionMin() != null) {
+                jakarta.persistence.criteria.Subquery<Double> subquery = query.subquery(Double.class);
+                jakarta.persistence.criteria.Root<com.udmarketplace.valoracion.model.Valoracion> valoracionRoot = subquery.from(com.udmarketplace.valoracion.model.Valoracion.class);
+                
+                subquery.select(cb.avg(valoracionRoot.get("calificacion")))
+                        .where(cb.equal(valoracionRoot.get("producto").get("idPub"), root.get("idPub")),
+                                cb.isTrue(valoracionRoot.get("estadoValo")));
+                
+                predicates.add(cb.greaterThanOrEqualTo(subquery, f.getCalificacionMin()));
+            }
+            
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
