@@ -8,6 +8,7 @@ import com.udmarketplace.catalogo.service.ProductoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +35,7 @@ import java.util.List;
  * </ul>
  *
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @RestController
@@ -57,7 +58,7 @@ public class ProductoController {
      * @param authHeader header Authorization con el token Bearer del vendedor
      * @return DTO del producto creado con HTTP 201
      */
-    @PostMapping("/api/seller/productos")
+    @PostMapping(value = "/api/seller/productos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('VENDEDOR')")
     @Operation(
             summary = "Registrar nuevo producto",
@@ -155,7 +156,7 @@ public class ProductoController {
      * @param authHeader header Authorization con el token Bearer del vendedor
      * @return DTO del producto actualizado
      */
-    @PutMapping("/api/seller/productos/{id}")
+    @PutMapping(value = "/api/seller/productos/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('VENDEDOR')")
     @Operation(
             summary = "Actualizar producto",
