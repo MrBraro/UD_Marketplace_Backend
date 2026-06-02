@@ -192,23 +192,39 @@ mvn spring-boot:run
 | REQ-12 | JWT contiene `userId` del usuario autenticado | ✅ |
 | REQ-15 | Registro de intentos fallidos con IP, fecha y hora | ✅ |
 | REQ-16 | Bloqueo temporal tras 5 intentos fallidos (30 min) | ✅ |
+| **RF17** | Retornar información de perfil del usuario autenticado | ✅ (`GET /api/auth/me`) |
+| **RF18** | Permitir que un administrador actualice la información de un usuario | ✅ (`PUT /api/admin/usuarios/{id}`) |
+| **RF20** | Registrar solicitud de recuperación de contraseña por correo | ✅ (`POST /api/auth/recuperar-password`) |
+| **RF21** | Generar token único para cada solicitud de recuperación | ✅ (Token UUID de un solo uso) |
+| **RF22** | Permitir cambio de contraseña solo si el token es válido y no expirado | ✅ (`POST /api/auth/reset-password`) |
 | REQ-29 | Contador de productos activos por categoría | ✅ |
 | REQ-38 | Transacción asociada a comprador, vendedor y producto | ✅ |
 | REQ-39 | Actualización de estado al confirmar el vendedor | ✅ |
 | REQ-40 | Historial de transacciones consultable con filtros | ✅ |
 | REQ-41 | Generación automática de orden de entrega al confirmar | ✅ |
 | REQ-42 | Snapshot del producto en la orden de entrega | ✅ |
-| REQ-44 Radicado único por PQR (AUTO_INCREMENT) | ✅ |
-| REQ-46 Fecha y hora de creación registradas automáticamente | ✅ |
+| REQ-44 | Radicado único por PQR (AUTO_INCREMENT) | ✅ |
+| RF45 | Registrar una PQR asociada al usuario autenticado que la crea | ✅ |
+| REQ-46 | Fecha y hora de creación registradas automáticamente | ✅ |
 | REQ-47 | Adjunto de archivo (BLOB en BD, desarrollo) | ✅ |
+| RF48 | Retornar el estado actual de una PQR identificada | ✅ |
 | REQ-49 | Asignación al administrador con menor carga | ✅ |
+| RF50 | Clasificar cada PQR con uno de los tipos permitidos (petición, queja, reclamo) | ✅ |
 | REQ-51 | Interacciones de PQR con autor, mensaje, fecha y hora | ✅ |
 | REQ-52 | Calificación promedio del producto | ✅ |
+| **RF53** | Permitir cambio de estado de una PQR (Enviada, En proceso, Cerrada) | ✅ (`PATCH /api/admin/pqrs/{radicado}/estado`) |
+| **RF54** | Agregar respuestas asociadas a una PQR registrada | ✅ (`POST /api/pqrs/{radicado}/interacciones`) |
+| **RF55** | Permitir que un administrador cierre una PQR registrada | ✅ (`PATCH /api/admin/pqrs/{radicado}/cerrar`) |
+| **RF56** | Restringir acceso a PQR solo al usuario creador y administradores | ✅ (Validación RBAC en servicio) |
 | REQ-65 | Reputación del vendedor como promedio de valoraciones | ✅ |
 | REQ-66 | Historial de valoraciones sin sobrescribir | ✅ |
 | REQ-67 | Relación comprador-vendedor en cada valoración | ✅ |
 | REQ-69 | Conteo de reseñas positivas (calificación ≥ 4) | ✅ |
 | REQ-69 | Índices en campos de búsqueda/filtrado | ✅ (en marketplace.sql) |
+| RNF20 | Respaldos periódicos mínimos diarios de base de datos | ✅ (database/backup.*) |
+| **RNF16** | Documentar endpoints con descripción, entradas, respuestas y errores | ✅ (Especificación OpenAPI/Swagger) |
+| **RNF17** | Registrar auditoría de usuarios, transacciones y cierres de PQR | ✅ (Tabla `audit_log` y `AuditService`) |
+
 
 ---
 
@@ -998,3 +1014,40 @@ Al arrancar, `DataSeeder` crea automáticamente tres usuarios si no existen:
 
 ---
 
+## 9. OpenAPI y Documentación interactiva (Swagger UI)
+
+El backend expone la especificación OpenAPI 3.0 de forma automática y ofrece una interfaz interactiva para realizar pruebas sobre las rutas públicas y protegidas (usando la opción **Authorize** e introduciendo el token JWT de sesión en formato Bearer).
+
+- **Swagger UI interactivo:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **JSON de Especificación OpenAPI:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+---
+
+## 10. Gestión de Respaldos de Base de Datos (Backups)
+
+Se proporcionan scripts automatizados en la carpeta `database/` para realizar respaldos diarios y seguros de la base de datos MySQL con rotación y retención de 7 días.
+
+### Linux y macOS (`backup.sh`)
+Usa `mysqldump` para generar archivos comprimidos en formato `.sql.gz`.
+- **Uso:** `bash database/backup.sh`
+- **Automatización (Cron a las 2:00 AM diario):**
+  ```bash
+  0 2 * * * /ruta/al/proyecto/database/backup.sh >> /var/log/ud_marketplace_backup.log 2>&1
+  ```
+
+### Windows (`backup.bat`)
+Script batch equivalente para sistemas Windows.
+- **Uso:** `database\backup.bat`
+- **Automatización:** Programar una tarea básica diaria mediante el **Programador de Tareas** de Windows apuntando al script.
+
+---
+
+## 11. Registro de Auditoría (Audit Log)
+
+El sistema cuenta con una tabla física de auditoría `audit_log` y un servicio integrado (`AuditService`) que registra automáticamente las acciones críticas que ocurran en el backend:
+
+- **USUARIO_MODIFICADO:** Registra cambios en los perfiles de usuario realizados por un administrador, especificando un detalle con el antes y el después de cada campo modificado.
+- **TRANSACCION_CONFIRMADA:** Registra cuándo un vendedor confirma una compra y se genera una entrega.
+- **PQR_CERRADA:** Registra el cierre de una PQR por parte de un administrador.
+
+Cada registro guarda la fecha/hora, el identificador y el correo de quien ejecutó la acción, el ID del recurso afectado y una descripción detallada. Las inserciones se ejecutan utilizando transacciones independientes (`PROPAGATION_REQUIRES_NEW`), lo que asegura que el log quede grabado de forma definitiva incluso si la transacción principal falla o es cancelada por reglas de negocio posteriores.
