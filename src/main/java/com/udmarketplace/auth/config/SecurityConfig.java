@@ -27,6 +27,10 @@ import java.time.LocalDateTime;
  * <ul>
  *   <li>Sesiones <b>stateless</b> (JWT, sin HttpSession)</li>
  *   <li>CSRF deshabilitado (no aplica a APIs REST sin formularios)</li>
+ *   <li>Seguridad a nivel de método habilitada con {@link EnableMethodSecurity},
+ *       permitiendo el uso de {@code @PreAuthorize}</li>
+ *   <li>Exposición del bean {@link PasswordEncoder} usando BCrypt para hash seguro
+ *       de contraseñas, evitando almacenamiento en texto plano</li>
  *   <li>RBAC mediante {@code @PreAuthorize} habilitado con {@code @EnableMethodSecurity}</li>
  *   <li>Endpoints públicos: login, 2FA, recuperación de contraseña, catálogo y valoraciones</li>
  *   <li>Prefijos de ruta protegidos por rol: {@code /api/admin/**}, {@code /api/seller/**}, {@code /api/buyer/**}</li>
@@ -36,7 +40,7 @@ import java.time.LocalDateTime;
  * <p>El {@link JwtFilter} se inserta antes de {@link UsernamePasswordAuthenticationFilter}
  * para validar el token en cada solicitud protegida.
  *
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Configuration
@@ -51,6 +55,11 @@ public class SecurityConfig {
     /**
      * Define la cadena de filtros de seguridad con las reglas de autorización por rol y endpoint.
      *
+     * <p>Se permite acceso público a los endpoints de autenticación inicial,
+     * registro, recuperación de contraseña, catálogo y valoraciones. El resto
+     * de endpoints requiere autenticación, y algunos prefijos además exigen
+     * un rol específico.
+     *
      * @param http builder de configuración de seguridad HTTP
      * @return cadena de filtros de seguridad configurada
      * @throws Exception si la configuración de Spring Security falla
@@ -64,6 +73,7 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
+                            "/api/auth/register",
                             "/api/auth/login",
                             "/api/auth/verifyTwoFactor",
                             "/api/auth/recuperar-password",
