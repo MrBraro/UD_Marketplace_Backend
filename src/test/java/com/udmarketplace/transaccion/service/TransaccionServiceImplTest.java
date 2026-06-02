@@ -52,6 +52,8 @@ class TransaccionServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private ProductoRepository productoRepository;
+    @Mock
+    private com.udmarketplace.auth.service.AuditService auditService;
     @InjectMocks
     private TransaccionServiceImpl service;
 

@@ -12,6 +12,10 @@ import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.exception.InvalidTokenException;
 import com.udmarketplace.auth.service.AuthService;
 import com.udmarketplace.auth.service.RecuperacionPasswordService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +38,7 @@ import org.springframework.http.MediaType;
  *   <li>{@code GET  /api/auth/me}                   — Retorna información del usuario autenticado</li>
  *   <li>{@code POST /api/auth/recuperar-password}   — Solicita token de recuperación de contraseña</li>
  *   <li>{@code POST /api/auth/reset-password}       — Establece nueva contraseña con token válido</li>
+ *   <li>{@code GET  /api/auth/perfil}               — (Opcional) alias o endpoint de perfil</li>
  * </ul>
  *
  * <p>El endpoint de registro consume {@code multipart/form-data} para permitir
@@ -46,6 +51,7 @@ import org.springframework.http.MediaType;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Autenticación y Sesión", description = "Endpoints para inicio de sesión (2FA), cierre de sesión, perfil de usuario y recuperación de contraseña")
 public class AuthController {
 
     /** Servicio principal de autenticación que orquesta el flujo 2FA. */
@@ -89,6 +95,15 @@ public class AuthController {
      * @return respuesta indicando que se requiere verificación 2FA
      */
     @PostMapping("/login")
+    @Operation(
+            summary = "Paso 1: Validar credenciales y enviar 2FA",
+            description = "Valida el correo y contraseña del usuario. Si son correctos, genera y envía un código 2FA de 6 dígitos al correo registrado.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Credenciales válidas, se requiere validación 2FA (Paso 2)"),
+                    @ApiResponse(responseCode = "400", description = "Formato de solicitud inválido"),
+                    @ApiResponse(responseCode = "401", description = "Credenciales incorrectas o cuenta bloqueada")
+            }
+    )
     public ResponseEntity<LoginStepResponse> login(@Valid @RequestBody LoginRequest request,
                                                    HttpServletRequest httpRequest) {
         String ip = obtenerIp(httpRequest);
@@ -107,6 +122,13 @@ public class AuthController {
      * @return mensaje genérico de confirmación
      */
     @PostMapping("/recuperar-password")
+    @Operation(
+            summary = "Solicitar recuperación de contraseña",
+            description = "Registra una solicitud de recuperación de contraseña y envía un correo con un token único de restablecimiento. Responde con HTTP 200 por motivos de seguridad, exista o no el correo.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Solicitud procesada")
+            }
+    )
     public ResponseEntity<MessageResponse> recuperarPassword(
             @Valid @RequestBody RecuperarPasswordRequest request) {
         recuperacionPasswordService.solicitarRecuperacion(request.getCorreoUsuario());
@@ -123,6 +145,14 @@ public class AuthController {
      * @throws com.udmarketplace.auth.exception.InvalidTokenException si el token es inválido o expiró
      */
     @PostMapping("/reset-password")
+    @Operation(
+            summary = "Restablecer contraseña con token",
+            description = "Establece una nueva contraseña para la cuenta usando un token de recuperación válido y no expirado.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Contraseña restablecida exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Token inválido, expirado o ya utilizado, o contraseña no cumple con requerimientos mínimos")
+            }
+    )
     public ResponseEntity<MessageResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
         recuperacionPasswordService.resetearPassword(request.getToken(), request.getNuevaPassword());
@@ -152,6 +182,14 @@ public class AuthController {
      * @return JWT de sesión con datos básicos del usuario autenticado
      */
     @PostMapping("/verifyTwoFactor")
+    @Operation(
+            summary = "Paso 2: Verificar código 2FA y emitir JWT",
+            description = "Valida el código de 6 dígitos enviado por correo. Si es válido, emite un token de sesión JWT con los detalles del usuario y sus roles.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Autenticación exitosa y JWT emitido"),
+                    @ApiResponse(responseCode = "401", description = "Código de verificación inválido o expirado")
+            }
+    )
     public ResponseEntity<LoginResponse> verifyTwoFactor(@Valid @RequestBody TwoFactorRequest request) {
         LoginResponse response = authService.verifyTwoFactor(request);
         return ResponseEntity.ok(response);
@@ -167,6 +205,15 @@ public class AuthController {
      * @return mensaje de confirmación de cierre de sesión
      */
     @PostMapping("/logout")
+    @Operation(
+            summary = "Cerrar sesión",
+            description = "Invalida el token JWT activo colocándolo en la lista negra (blacklist), impidiendo su uso posterior.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Sesión cerrada y token invalidado exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "Token ausente o malformado")
+            }
+    )
     public ResponseEntity<MessageResponse> logout(HttpServletRequest httpRequest) {
         String token = extractBearerToken(httpRequest);
         authService.logout(token);
@@ -181,6 +228,15 @@ public class AuthController {
      * @return DTO con datos del perfil del usuario sin información sensible
      */
     @GetMapping("/me")
+    @Operation(
+            summary = "Obtener perfil de usuario autenticado",
+            description = "Retorna la información del perfil del usuario autenticado que corresponde al token de sesión válido enviado en las cabeceras.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Datos de perfil de usuario retornados"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado o token inválido")
+            }
+    )
     public ResponseEntity<UserInfoResponse> getCurrentUser(Authentication authentication) {
         UserInfoResponse response = authService.getCurrentUser(authentication.getName());
         return ResponseEntity.ok(response);
