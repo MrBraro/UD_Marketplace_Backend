@@ -83,6 +83,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, message);
     }
 
+    /** 400 — Errores de validación expresados con IllegalArgumentException. */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     /** 423 — Cuenta bloqueada temporalmente por intentos fallidos (REQ-03). */
     @ExceptionHandler(AccountBlockedException.class)
     @ResponseStatus(HttpStatus.LOCKED)

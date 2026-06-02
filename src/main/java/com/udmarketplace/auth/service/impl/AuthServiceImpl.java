@@ -8,8 +8,10 @@ import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.exception.AccountBlockedException;
 import com.udmarketplace.auth.exception.InvalidCredentialsException;
+import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.TwoFactorException;
 import com.udmarketplace.auth.mapper.UserMapper;
+import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.IntentoFallidoAuth;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Role;
@@ -32,6 +34,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.Locale;
 
 /**
  * Implementación principal del servicio de autenticación del sistema UD Marketplace.
@@ -102,8 +105,12 @@ public class AuthServiceImpl implements AuthService {
 @Override
 @Transactional
 public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
-    if (userRepository.findByCorreoUsuario(request.getCorreoInstitu()).isPresent()) {
-        throw new IllegalArgumentException("El correo institucional ya se encuentra registrado");
+    String correoInstitucional = normalizarCorreoInstitucional(request.getCorreoInstitu());
+
+    validarDominioCorreo(correoInstitucional);
+
+    if (userRepository.findByCorreoUsuario(correoInstitucional).isPresent()) {
+        throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
     }
 
     if (request.getFechaNacimiento() == null) {
@@ -132,14 +139,21 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
     user.setSegundoNombre(request.getSegundoNombre());
     user.setPrimerApellido(request.getPrimerApellido());
     user.setSegundoApellido(request.getSegundoApellido());
+    user.setTipoDocumento(request.getTipoDocumento());
+    user.setNumeroDocumento(request.getNumeroDocumento());
+    user.setLugarNacimiento(request.getLugarNacimiento());
     user.setFechaNacimiento(request.getFechaNacimiento());
-    user.setCorreoUsuario(request.getCorreoInstitu());
+    user.setCorreoUsuario(correoInstitucional);
     user.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
     user.setGenero(request.getGenero());
     user.setTelUser(request.getTelUser());
     user.setActivo(true);
+    user.setEstadoCuenta(EstadoCuenta.ACTIVA);
     user.setMenorEdad(menorEdad);
     user.setRolUsua(rol);
+    user.setCodigoEstudiantil(request.getCodigoEstudiantil());
+    user.setEstadoAcademico(request.getEstadoAcademico());
+    user.setProyectoCurricular(request.getProyectoCurricular());
 
     if (menorEdad) {
         try {
@@ -151,7 +165,12 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
         user.setPermisoUserMenor(null);
     }
 
-    User savedUser = userRepository.save(user);
+    User savedUser;
+    try {
+        savedUser = userRepository.save(user);
+    } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+        throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
+    }
     log.info("Usuario registrado exitosamente con correo '{}'", savedUser.getCorreoUsuario());
 
     return new UserInfoResponse(
@@ -175,12 +194,18 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
     @Override
     @Transactional
     public LoginStepResponse login(LoginRequest request, String ipOrigen) {
-        User user = userRepository.findByCorreoUsuario(request.getCorreoUsuario()).orElse(null);
+        String correoUsuario = normalizarCorreoInstitucional(request.getCorreoUsuario());
+        User user = userRepository.findByCorreoUsuario(correoUsuario).orElse(null);
+
+        if (user != null && !estaCuentaHabilitada(user)) {
+            registrarIntento(correoUsuario, user.getCodigoUsua(), ipOrigen, false);
+            throw new InvalidCredentialsException("Credenciales inválidas");
+        }
 
         // verificar bloqueo antes de intentar validar credenciales
         if (user != null && user.getBloqueadoHasta() != null
                 && user.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
-            registrarIntento(request.getCorreoUsuario(), ipOrigen, false);
+            registrarIntento(correoUsuario, user.getCodigoUsua(), ipOrigen, false);
             throw new AccountBlockedException(
                     "Cuenta bloqueada temporalmente. Intente de nuevo después de: "
                     + user.getBloqueadoHasta());
@@ -188,9 +213,9 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
 
         if (user == null || !passwordEncoder.matches(request.getPasswordUsua(), user.getPasswordUsua())) {
             // registrar el intento fallido con IP, fecha y hora
-            registrarIntento(request.getCorreoUsuario(), ipOrigen, false);
+            registrarIntento(correoUsuario, user != null ? user.getCodigoUsua() : null, ipOrigen, false);
             // bloquear si se alcanzó el umbral de intentos
-            verificarYBloquearCuenta(user, request.getCorreoUsuario());
+            verificarYBloquearCuenta(user, correoUsuario);
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
 
@@ -212,7 +237,8 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
     @Override
     @Transactional
     public LoginResponse verifyTwoFactor(TwoFactorRequest request) {
-        User user = userRepository.findByCorreoUsuario(request.getCorreoUsuario())
+        String correoUsuario = normalizarCorreoInstitucional(request.getCorreoUsuario());
+        User user = userRepository.findByCorreoUsuario(correoUsuario)
                 .orElseThrow(() -> new InvalidCredentialsException("Credenciales inválidas"));
 
         if (!twoFactorService.validateCode(user, request.getTwoFactorCode())) {
@@ -283,6 +309,24 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
     }
 
     /**
+     * Persiste un intento de autenticación con el identificador del usuario cuando está disponible.
+     *
+     * @param correo correo electrónico utilizado en el intento
+     * @param codigoUsuario identificador del usuario asociado, o {@code null}
+     * @param ip dirección IP de origen de la solicitud
+     * @param exitoso {@code true} si el intento fue exitoso
+     */
+    private void registrarIntento(String correo, Long codigoUsuario, String ip, boolean exitoso) {
+        intentoFallidoRepo.save(IntentoFallidoAuth.builder()
+                .correoIntentado(correo)
+                .codigoUsuario(codigoUsuario)
+                .ipOrigen(ip)
+                .fechaHora(LocalDateTime.now())
+                .exitoso(exitoso)
+                .build());
+    }
+
+    /**
      * Verifica si el usuario alcanzó el máximo de intentos fallidos en la
      * ventana de 10 minutos y, de ser así, bloquea la cuenta (REQ-03).
      *
@@ -297,6 +341,40 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
             user.setBloqueadoHasta(LocalDateTime.now().plusMinutes(minutosBloqueo));
             userRepository.save(user);
             log.warn("Cuenta '{}' bloqueada temporalmente hasta {}", correo, user.getBloqueadoHasta());
+        }
+    }
+
+    /**
+     * Valida si la cuenta del usuario está habilitada para autenticarse.
+     *
+     * @param user usuario recuperado de base de datos
+     * @return {@code true} si la cuenta está activa y no fue suspendida ni deshabilitada
+     */
+    private boolean estaCuentaHabilitada(User user) {
+        EstadoCuenta estadoCuenta = user.getEstadoCuenta();
+        boolean estadoActivo = estadoCuenta == null || estadoCuenta == EstadoCuenta.ACTIVA;
+        return user.isActivo() && estadoActivo;
+    }
+
+    /**
+     * Normaliza el correo institucional a minúsculas y sin espacios extremos.
+     *
+     * @param correo valor recibido en el request
+     * @return correo normalizado
+     */
+    private String normalizarCorreoInstitucional(String correo) {
+        return correo != null ? correo.trim().toLowerCase(Locale.ROOT) : null;
+    }
+
+    /**
+     * Verifica que el correo pertenezca al dominio institucional permitido.
+     *
+     * @param correoInstitucional correo normalizado
+     */
+    private void validarDominioCorreo(String correoInstitucional) {
+        if (correoInstitucional == null || !correoInstitucional.endsWith("@udistrital.edu.co")) {
+            throw new OperacionNoPermitidaException(
+                    "El correo institucional debe pertenecer al dominio @udistrital.edu.co");
         }
     }
 }

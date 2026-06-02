@@ -9,20 +9,27 @@ USE `marketplace`;
 
 CREATE TABLE IF NOT EXISTS `usuario` (
     codigo_user        INT PRIMARY KEY AUTO_INCREMENT,
+    tipo_documento     VARCHAR(100),
+    numero_documento   VARCHAR(50),
     primer_nomb        VARCHAR(100),
     segundo_nom        VARCHAR(100),
     primer_apel        VARCHAR(100),
     segundo_apel       VARCHAR(100),
+    lugar_nacimiento   VARCHAR(150),
     fecha_nacimiento   DATE,
     correo_institu     VARCHAR(150) UNIQUE NOT NULL,
     password_hash      VARCHAR(255) NOT NULL,
     activo             BOOLEAN DEFAULT TRUE,
+    estado_cuenta      VARCHAR(20) NOT NULL DEFAULT 'ACTIVA',
     menor_edad         BOOLEAN DEFAULT FALSE,
     permiso_user_menor LONGBLOB,
     -- Nuevos campos requeridos
     genero             VARCHAR(20),
     perimiso_user      VARCHAR(50) NOT NULL DEFAULT 'COMPRADOR',
     tel_user           VARCHAR(20),
+    codigo_estudiantil VARCHAR(50),
+    estado_academico   VARCHAR(100),
+    proyecto_curricular VARCHAR(150),
     two_factor_code    VARCHAR(6),
     two_factor_expiry  DATETIME,
     bloqueado_hasta    DATETIME
@@ -67,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `invalidated_tokens` (
 CREATE TABLE IF NOT EXISTS `intento_fallido_auth` (
     id_intento       INT PRIMARY KEY AUTO_INCREMENT,
     correo_intentado VARCHAR(150),
+    codigo_user      INT,
     ip_origen        VARCHAR(50),
     fecha_hora       DATETIME NOT NULL,
     exitoso          BOOLEAN DEFAULT FALSE
@@ -227,7 +235,7 @@ CREATE TABLE IF NOT EXISTS `valoracion` (
     calificacion     INT CHECK (calificacion BETWEEN 1 AND 5),
     fecha_valo       DATE,
     estado_valo      BOOLEAN DEFAULT TRUE,
-    id_orden         INT,
+    id_orden         INT UNIQUE,
     id_pub           INT,
     codigo_vendedor  INT,
     -- Nuevos campos requeridos
@@ -297,4 +305,4 @@ CREATE TABLE IF NOT EXISTS `audit_log` (
     INDEX idx_audit_fecha     (created_at)
 ) ENGINE=InnoDB;
 
-SELECT * FROM `resena_predefinida`;
+SELECT * FROM `resena_predefinida`;

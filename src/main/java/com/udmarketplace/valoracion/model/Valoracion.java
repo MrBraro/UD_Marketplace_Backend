@@ -26,7 +26,7 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "valoracion")
+@Table(name = "valoracion", uniqueConstraints = @UniqueConstraint(columnNames = "id_orden"))
 @Data
 @Builder
 @NoArgsConstructor

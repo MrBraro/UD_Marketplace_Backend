@@ -12,6 +12,7 @@
  */
 package com.udmarketplace.auth.security;
 
+import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,10 +42,26 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "Usuario no encontrado con correo: " + correoUsuario));
 
+        if (!estaCuentaHabilitada(user)) {
+            throw new UsernameNotFoundException("Usuario no habilitado para autenticarse: " + correoUsuario);
+        }
+
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getCorreoUsuario())
                 .password(user.getPasswordUsua())
                 .roles(user.getRolUsua().name())   // agrega prefijo ROLE_ automáticamente
                 .build();
+    }
+
+    /**
+     * Determina si la cuenta está disponible para autenticación.
+     *
+     * @param user usuario recuperado de la base de datos
+     * @return {@code true} si la cuenta está activa y habilitada
+     */
+    private boolean estaCuentaHabilitada(User user) {
+        EstadoCuenta estadoCuenta = user.getEstadoCuenta();
+        boolean estadoActivo = estadoCuenta == null || estadoCuenta == EstadoCuenta.ACTIVA;
+        return user.isActivo() && estadoActivo;
     }
 }

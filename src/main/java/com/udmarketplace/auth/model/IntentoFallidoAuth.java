@@ -38,6 +38,10 @@ public class IntentoFallidoAuth {
     @Column(name = "correo_intentado", length = 150)
     private String correoIntentado;
 
+    /** Identificador del usuario asociado al correo cuando está disponible. */
+    @Column(name = "codigo_user")
+    private Long codigoUsuario;
+
     /** Dirección IP de origen de la solicitud (IPv4 o IPv6). */
     @Column(name = "ip_origen", length = 50)
     private String ipOrigen;

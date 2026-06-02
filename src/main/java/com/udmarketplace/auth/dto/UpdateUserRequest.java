@@ -1,5 +1,6 @@
 package com.udmarketplace.auth.dto;
 
+import com.udmarketplace.auth.model.EstadoCuenta;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -44,6 +45,9 @@ public class UpdateUserRequest {
     /** Nuevo género del usuario. */
     @Size(max = 20, message = "El género no puede exceder 20 caracteres")
     private String genero;
+
+    /** Nuevo estado administrativo de la cuenta. */
+    private EstadoCuenta estadoCuenta;
 
     /** Nuevo estado de la cuenta (activa/inactiva). */
     private Boolean activo;

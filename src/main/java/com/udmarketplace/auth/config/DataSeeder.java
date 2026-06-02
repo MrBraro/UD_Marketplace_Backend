@@ -2,6 +2,7 @@ package com.udmarketplace.auth.config;
 
 import com.udmarketplace.auth.model.Administrador;
 import com.udmarketplace.auth.model.Comprador;
+import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.Role;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Vendedor;
@@ -182,5 +183,6 @@ public class DataSeeder implements CommandLineRunner {
         user.setGenero(genero);
         user.setTelUser(tel);
         user.setActivo(true);
+                user.setEstadoCuenta(EstadoCuenta.ACTIVA);
     }
 }
