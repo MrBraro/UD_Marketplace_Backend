@@ -11,6 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 import java.util.List;
 
 /**
@@ -30,6 +35,7 @@ import java.util.List;
  */
 @RestController
 @RequiredArgsConstructor
+@Tag(name = "Categorías", description = "Endpoints para la consulta y administración de categorías de productos")
 public class CategoriaController {
 
     /** Servicio de negocio para la gestión de categorías. */
@@ -47,6 +53,17 @@ public class CategoriaController {
      */
     @PostMapping("/api/admin/categorias")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(
+            summary = "Crear nueva categoría",
+            description = "Registra una nueva categoría de productos en el sistema. Requiere rol ADMINISTRADOR.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Categoría creada exitosamente"),
+                    @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Permisos insuficientes")
+            }
+    )
     public ResponseEntity<CategoriaDto> crearCategoria(
             @Valid @RequestBody CrearCategoriaRequest request,
             @RequestHeader("Authorization") String authHeader) {
@@ -61,6 +78,13 @@ public class CategoriaController {
      * @return lista de categorías activas
      */
     @GetMapping("/api/categorias")
+    @Operation(
+            summary = "Listar categorías activas",
+            description = "Retorna una lista de todas las categorías de productos marcadas como activas en el catálogo.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Lista de categorías activas obtenida exitosamente")
+            }
+    )
     public ResponseEntity<List<CategoriaDto>> listarCategorias() {
         return ResponseEntity.ok(categoriaService.listarCategoriasActivas());
     }
@@ -72,6 +96,14 @@ public class CategoriaController {
      * @return DTO con los datos de la categoría
      */
     @GetMapping("/api/categorias/{id}")
+    @Operation(
+            summary = "Obtener detalle de una categoría",
+            description = "Retorna los datos específicos de una categoría de producto mediante su identificador.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Detalle de categoría obtenido exitosamente"),
+                    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
+            }
+    )
     public ResponseEntity<CategoriaDto> obtenerCategoria(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaService.obtenerCategoria(id));
     }
@@ -85,6 +117,17 @@ public class CategoriaController {
      */
     @PatchMapping("/api/admin/categorias/{id}/inactivar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(
+            summary = "Inactivar categoría",
+            description = "Realiza la inactivación (eliminación lógica) de una categoría de producto por su ID. Requiere rol ADMINISTRADOR.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Categoría inactivada exitosamente"),
+                    @ApiResponse(responseCode = "401", description = "No autenticado"),
+                    @ApiResponse(responseCode = "403", description = "Acceso prohibido - Permisos insuficientes"),
+                    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
+            }
+    )
     public ResponseEntity<Void> inactivarCategoria(
             @PathVariable Long id,
             @RequestHeader("Authorization") String authHeader) {
