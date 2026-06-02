@@ -20,12 +20,13 @@ import java.util.List;
  *
  * <p>Expone los endpoints del ciclo de vida de los productos:
  * <ul>
- *   <li>{@code POST   /api/seller/productos}     — registrar producto (VENDEDOR)</li>
- *   <li>{@code GET    /api/productos}             — buscar con filtros (público)</li>
- *   <li>{@code GET    /api/productos/{id}}        — detalle completo (público)</li>
- *   <li>{@code GET    /api/seller/productos}      — mis productos del vendedor (VENDEDOR)</li>
- *   <li>{@code PUT    /api/seller/productos/{id}} — actualizar producto (VENDEDOR)</li>
- *   <li>{@code DELETE /api/seller/productos/{id}} — eliminación lógica (VENDEDOR)</li>
+ *   <li>{@code POST   /api/seller/productos}              — registrar producto (VENDEDOR)</li>
+ *   <li>{@code GET    /api/productos}                      — buscar con filtros (público)</li>
+ *   <li>{@code GET    /api/productos/{id}}                 — detalle completo (público)</li>
+ *   <li>{@code GET    /api/productos/vendedor/{idVendedor} — productos por vendedor (público)</li>
+ *   <li>{@code GET    /api/seller/productos}              — mis productos del vendedor (VENDEDOR)</li>
+ *   <li>{@code PUT    /api/seller/productos/{id}}         — actualizar producto (VENDEDOR)</li>
+ *   <li>{@code DELETE /api/seller/productos/{id}}         — eliminación lógica (VENDEDOR)</li>
  * </ul>
  *
  * @author Daniel Perez
@@ -85,6 +86,36 @@ public class ProductoController {
     @GetMapping("/api/productos/{id}")
     public ResponseEntity<ProductoDto> obtenerProducto(@PathVariable Long id) {
         return ResponseEntity.ok(productoService.obtenerProducto(id));
+    }
+
+    /**
+     * Lista los productos activos de un vendedor específico identificado por su ID.
+     * Endpoint público, no requiere autenticación.
+     *
+     * <p>Códigos de respuesta HTTP:
+     * <ul>
+     *   <li>200 OK — el vendedor existe y tiene productos activos</li>
+     *   <li>404 NOT FOUND — el vendedor no existe en el sistema</li>
+     *   <li>204 NO CONTENT — el vendedor existe pero no tiene productos activos</li>
+     * </ul>
+     *
+     * @param idVendedor identificador del vendedor
+     * @param ordenarPor criterio de ordenamiento (precio_asc, precio_desc, nombre, fecha)
+     * @return lista de productos activos del vendedor con código HTTP apropiado
+     * @author Andrés Cerdas
+     * @since 2026-06-01
+     */
+    @GetMapping("/api/productos/vendedor/{idVendedor}")
+    public ResponseEntity<List<ProductoDto>> obtenerProductosPorVendedor(
+            @PathVariable Long idVendedor,
+            @RequestParam(defaultValue = "fecha") String ordenarPor) {
+        List<ProductoDto> productos = productoService.obtenerProductosPorVendedor(idVendedor, ordenarPor);
+        
+        if (productos.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        
+        return ResponseEntity.ok(productos);
     }
 
     /**
