@@ -203,3 +203,11 @@ Cargados automáticamente al arrancar la aplicación para pruebas:
 | `admin@udmarketplace.com` | `Admin123!` | `ADMINISTRADOR` | Carlos Augusto Pérez Gómez | Masculino | 1985-05-15 |
 | `seller1@udmarketplace.com` | `Seller123!` | `VENDEDOR` | María Isabel Rodríguez Sánchez | Femenino | 1990-08-22 |
 | `buyer1@udmarketplace.com` | `Buyer123!` | `COMPRADOR` | Juan García Martínez | Masculino | 1995-12-10 |
+
+---
+
+## Nota de alcance
+
+Este documento describe únicamente contratos de autenticación/autorización.
+Los endpoints de integración con microservicios Python (cupones/reportes) se documentan en `README.md`
+en las secciones **6.4 Módulo Transacciones** y **6.5 Módulo PQR**.

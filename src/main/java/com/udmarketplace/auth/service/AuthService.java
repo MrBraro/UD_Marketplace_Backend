@@ -3,19 +3,10 @@ package com.udmarketplace.auth.service;
 import com.udmarketplace.auth.dto.LoginRequest;
 import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
-import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
-import org.springframework.web.multipart.MultipartFile;
 
 public interface AuthService {
-
-    /**
-     * Registra un nuevo usuario. Calcula minoría de edad, valida PDF si aplica,
-     * persiste el subtipo JPA correcto (Vendedor/Comprador/Administrador),
-     * envía email de confirmación y crea cupón de bienvenida.
-     */
-    UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion);
 
     /**
      * Paso 1 del login: valida credenciales, registra el intento y envía código 2FA.

@@ -4,9 +4,6 @@ import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.auth.service.PythonCouponClientService;
 import com.udmarketplace.auth.service.PythonReportClientService;
 import com.udmarketplace.transaccion.dto.ReporteExternoDto;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,8 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Tag(name = "Servicios Python", description = "Cupones de descuento y tracking de reportes externos")
-@SecurityRequirement(name = "bearerAuth")
 public class ReporteExternoController {
 
     private final PythonReportClientService pythonReportClient;
@@ -35,10 +30,6 @@ public class ReporteExternoController {
      * @return estado actual del reporte externo
      */
     @GetMapping("/reportes-externos/{radicado}")
-    @Operation(
-            summary = "Consultar estado de reporte externo",
-            description = "Consulta el estado de una PQR en el sistema de reportes externo Python usando el radicado externo."
-    )
     public ResponseEntity<ReporteExternoDto> consultarReporte(@PathVariable String radicado) {
         ReporteExternoDto dto = pythonReportClient.consultarPorRadicado(radicado);
         if (dto == null) {
@@ -56,10 +47,6 @@ public class ReporteExternoController {
      */
     @GetMapping("/buyer/cupones")
     @PreAuthorize("hasRole('COMPRADOR')")
-    @Operation(
-            summary = "Listar cupones del comprador",
-            description = "Retorna los cupones disponibles para el comprador autenticado desde el coupon service Python."
-    )
     public ResponseEntity<String> obtenerCupones(
             @RequestHeader("Authorization") String authHeader) {
         String correo = jwtUtil.extractCorreoUsuario(authHeader.substring(7));
