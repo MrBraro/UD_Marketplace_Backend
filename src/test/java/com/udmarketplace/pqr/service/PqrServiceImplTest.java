@@ -13,6 +13,7 @@ import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.Administrador;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.UserRepository;
+import com.udmarketplace.auth.service.AuditService;
 import com.udmarketplace.auth.service.PythonReportClientService;
 import com.udmarketplace.pqr.dto.AgregarInteraccionRequest;
 import com.udmarketplace.pqr.dto.CrearPqrRequest;
@@ -52,6 +53,8 @@ class PqrServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private PythonReportClientService pythonReportClient;
+    @Mock
+    private AuditService auditService;
     @InjectMocks
     private PqrServiceImpl service;
 

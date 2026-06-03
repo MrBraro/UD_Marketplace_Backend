@@ -146,16 +146,14 @@ public class TransaccionServiceImpl implements TransaccionService {
 
         // Auditoría: registrar cambio de estado de transacción (REQ-06)
         User vendedor = userRepository.findById(codigoVendedor).orElse(null);
-        if (auditService != null) {
-            auditService.registrar(
-                    AccionAuditoria.TRANSACCION_ESTADO_CAMBIADO,
-                    "Orden",
-                    orden.getIdOrden(),
-                    codigoVendedor,
-                    vendedor != null ? vendedor.getCorreoUsuario() : "desconocido",
-                    "Estado: PENDIENTE → CONFIRMADA"
-            );
-        }
+        auditService.registrar(
+                AccionAuditoria.TRANSACCION_ESTADO_CAMBIADO,
+                "Orden",
+                orden.getIdOrden(),
+                codigoVendedor,
+                vendedor != null ? vendedor.getCorreoUsuario() : "desconocido",
+                "Estado: PENDIENTE → CONFIRMADA"
+        );
 
         // generar orden de entrega automáticamente al confirmar
         // incluir snapshot del producto con sus detalles al momento de la compra
