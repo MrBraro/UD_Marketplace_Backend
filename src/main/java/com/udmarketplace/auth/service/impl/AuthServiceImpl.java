@@ -108,7 +108,22 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        return userMapper.toUserInfoResponse(userRepository.save(nuevoUsuario));
+        User usuarioGuardado = userRepository.save(nuevoUsuario);
+        UserInfoResponse response = userMapper.toUserInfoResponse(usuarioGuardado);
+        if (response != null) {
+            return response;
+        }
+        return new UserInfoResponse(
+                usuarioGuardado.getCodigoUsua(),
+                usuarioGuardado.getCorreoUsuario(),
+                usuarioGuardado.getRolUsua() != null ? usuarioGuardado.getRolUsua().name() : null,
+                usuarioGuardado.getPrimerNombre(),
+                usuarioGuardado.getSegundoNombre(),
+                usuarioGuardado.getPrimerApellido(),
+                usuarioGuardado.getSegundoApellido(),
+                usuarioGuardado.getGenero(),
+                usuarioGuardado.getFechaNacimiento()
+        );
     }
 
     @Override

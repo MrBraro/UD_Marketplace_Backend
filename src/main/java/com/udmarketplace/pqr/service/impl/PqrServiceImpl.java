@@ -194,14 +194,16 @@ public class PqrServiceImpl implements PqrService {
         // Auditoría: registrar cierre de PQR (REQ-06)
         if (EstadoPqr.CERRADA.name().equals(nuevoEstado)) {
             User admin = userRepository.findById(codigoAdmin).orElse(null);
-            auditService.registrar(
-                    AccionAuditoria.PQR_CERRADA,
-                    "Pqr",
-                    radicado,
-                    codigoAdmin,
-                    admin != null ? admin.getCorreoUsuario() : "desconocido",
-                    "Estado: " + estadoAnterior + " → CERRADA"
-            );
+            if (auditService != null) {
+                auditService.registrar(
+                        AccionAuditoria.PQR_CERRADA,
+                        "Pqr",
+                        radicado,
+                        codigoAdmin,
+                        admin != null ? admin.getCorreoUsuario() : "desconocido",
+                        "Estado: " + estadoAnterior + " → CERRADA"
+                );
+            }
         }
         return resultado;
     }
