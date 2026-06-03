@@ -131,6 +131,13 @@ mvn spring-boot:run
 # Servidor disponible en http://localhost:8080
 ```
 
+### Compilación y pruebas
+
+```bash
+# Ejecuta compilación + pruebas unitarias
+mvn test
+```
+
 ---
 
 ## 4. Módulos implementados

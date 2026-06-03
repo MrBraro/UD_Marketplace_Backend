@@ -66,6 +66,9 @@ public class TransaccionServiceImpl implements TransaccionService {
     /** Cliente del coupon service Python para aplicar descuentos. */
     private final PythonCouponClientService pythonCouponClient;
 
+    /** Servicio de auditoría para cambios de estado en transacciones. */
+    private final AuditService auditService;
+
     /**
      * {@inheritDoc}
      *

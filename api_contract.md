@@ -24,6 +24,40 @@ Paso 2: POST /api/auth/verifyTwoFactor
 
 No requieren cabecera `Authorization`.
 
+### Registro de usuario
+Permite crear un usuario con datos personales/académicos y rol inicial.
+
+- **Método:** `POST`
+- **Ruta:** `/api/auth/register`
+- **Cabeceras:** `Content-Type: multipart/form-data`
+- **Partes del Request:**
+  - `datos` (JSON, obligatorio): `RegisterRequest`
+  - `pdfAutorizacion` (archivo PDF, opcional): obligatorio solo cuando el usuario es menor de edad
+- **Reglas de negocio:**
+  - El correo debe pertenecer al dominio `@udistrital.edu.co`
+  - El correo no puede existir previamente
+  - El rol inicial se define por `permisoUser` (`ADMINISTRADOR`, `VENDEDOR`, `COMPRADOR`)
+  - Si `fechaNacimiento` indica menor de edad, se exige `pdfAutorizacion` válido
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "codigoUsua": 15,
+    "correoUsuario": "estudiante@udistrital.edu.co",
+    "rolUsua": "COMPRADOR",
+    "primerNombre": "Laura",
+    "segundoNombre": "María",
+    "primerApellido": "Gómez",
+    "segundoApellido": "Pérez",
+    "genero": "Femenino",
+    "fechaNacimiento": "2000-06-15"
+  }
+  ```
+- **Errores frecuentes:**
+  - `400 Bad Request`: datos inválidos o archivo de autorización inválido
+  - `422 Unprocessable Entity`: correo duplicado, dominio no permitido o rol inválido
+
+---
+
 ### 1. Iniciar Proceso de Login (Paso 1)
 Valida las credenciales básicas y prepara el segundo factor.
 

@@ -66,6 +66,9 @@ public class PqrServiceImpl implements PqrService {
     /** Cliente del report service Python para radicado externo. */
     private final PythonReportClientService pythonReportClient;
 
+    /** Servicio de auditoría para eventos de negocio sensibles. */
+    private final AuditService auditService;
+
     /**
      * {@inheritDoc}
      *

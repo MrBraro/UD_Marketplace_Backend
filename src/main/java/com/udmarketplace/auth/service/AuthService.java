@@ -10,6 +10,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface AuthService {
 
+    /** Registra un nuevo usuario en el sistema. */
+    UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion);
+
     /**
      * Paso 1 del login: valida credenciales, registra el intento y envía código 2FA.
      */

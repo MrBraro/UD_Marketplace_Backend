@@ -31,6 +31,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
@@ -56,24 +60,77 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
+        String correoInstitucional = normalizarCorreoInstitucional(request.getCorreoInstitu());
+        validarDominioCorreo(correoInstitucional);
+
+        if (userRepository.findByCorreoUsuario(correoInstitucional).isPresent()) {
+            throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
+        }
+
+        Role rolSolicitado;
+        try {
+            rolSolicitado = Role.valueOf(request.getPermisoUser().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new OperacionNoPermitidaException("El rol solicitado no es válido");
+        }
+
+        User nuevoUsuario = crearUsuarioPorRol(rolSolicitado);
+        nuevoUsuario.setTipoDocumento(request.getTipoDocumento());
+        nuevoUsuario.setNumeroDocumento(request.getNumeroDocumento());
+        nuevoUsuario.setPrimerNombre(request.getPrimerNombre());
+        nuevoUsuario.setSegundoNombre(request.getSegundoNombre());
+        nuevoUsuario.setPrimerApellido(request.getPrimerApellido());
+        nuevoUsuario.setSegundoApellido(request.getSegundoApellido());
+        nuevoUsuario.setLugarNacimiento(request.getLugarNacimiento());
+        nuevoUsuario.setFechaNacimiento(request.getFechaNacimiento());
+        nuevoUsuario.setTelUser(request.getTelUser());
+        nuevoUsuario.setGenero(request.getGenero());
+        nuevoUsuario.setCorreoUsuario(correoInstitucional);
+        nuevoUsuario.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
+        nuevoUsuario.setCodigoEstudiantil(request.getCodigoEstudiantil());
+        nuevoUsuario.setEstadoAcademico(request.getEstadoAcademico());
+        nuevoUsuario.setProyectoCurricular(request.getProyectoCurricular());
+        nuevoUsuario.setRolUsua(rolSolicitado);
+        nuevoUsuario.setEstadoCuenta(EstadoCuenta.ACTIVA);
+        nuevoUsuario.setActivo(true);
+
+        boolean menorEdad = request.getFechaNacimiento() != null
+                && request.getFechaNacimiento().isAfter(LocalDate.now().minusYears(18));
+        nuevoUsuario.setMenorEdad(menorEdad);
+
+        if (menorEdad) {
+            fileValidationService.validatePdf(pdfAutorizacion);
+            try {
+                nuevoUsuario.setPermisoUserMenor(pdfAutorizacion.getBytes());
+            } catch (IOException ex) {
+                throw new OperacionNoPermitidaException("No fue posible procesar el PDF de autorización");
+            }
+        }
+
+        return userMapper.toUserInfoResponse(userRepository.save(nuevoUsuario));
+    }
+
+    @Override
+    @Transactional
     public LoginStepResponse login(LoginRequest request, String ipOrigen) {
         String correoUsuario = normalizar(request.getCorreoUsuario());
         User user = userRepository.findByCorreoUsuario(correoUsuario).orElse(null);
 
         if (user != null && !user.isActivo()) {
-            registrarIntento(correoUsuario, ipOrigen, false);
+            registrarIntento(correoUsuario, ipOrigen, false, user.getCodigoUsua());
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
 
         if (user != null && user.getBloqueadoHasta() != null
                 && user.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
-            registrarIntento(correoUsuario, ipOrigen, false);
+            registrarIntento(correoUsuario, ipOrigen, false, user.getCodigoUsua());
             throw new AccountBlockedException("Cuenta bloqueada temporalmente. Intente después de: "
                     + user.getBloqueadoHasta());
         }
 
         if (user == null || !passwordEncoder.matches(request.getPasswordUsua(), user.getPasswordUsua())) {
-            registrarIntento(correoUsuario, ipOrigen, false);
+            registrarIntento(correoUsuario, ipOrigen, false, user != null ? user.getCodigoUsua() : null);
             verificarYBloquearCuenta(user, correoUsuario);
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
@@ -123,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
         return correo != null ? correo.trim().toLowerCase(Locale.ROOT) : null;
     }
 
-    private void registrarIntento(String correo, String ip, boolean exitoso) {
+    private void registrarIntento(String correo, String ip, boolean exitoso, Long codigoUsuario) {
         intentoFallidoRepo.save(IntentoFallidoAuth.builder()
                 .correoIntentado(correo)
                 .codigoUsuario(codigoUsuario)
@@ -131,6 +188,14 @@ public class AuthServiceImpl implements AuthService {
                 .fechaHora(LocalDateTime.now())
                 .exitoso(exitoso)
                 .build());
+    }
+
+    private User crearUsuarioPorRol(Role rolSolicitado) {
+        return switch (rolSolicitado) {
+            case ADMINISTRADOR -> new Administrador();
+            case VENDEDOR -> new Vendedor();
+            case COMPRADOR -> new Comprador();
+        };
     }
 
     private void verificarYBloquearCuenta(User user, String correo) {
