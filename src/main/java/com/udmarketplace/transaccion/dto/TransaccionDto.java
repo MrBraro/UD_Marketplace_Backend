@@ -57,4 +57,7 @@ public class TransaccionDto {
 
     /** Detalle de entrega con snapshot del producto; presente solo en órdenes CONFIRMADAS. */
     private OrdenEntregaDto detalleEntrega;
+
+    /** Código del cupón aplicado en esta transacción, null si no se usó cupón. */
+    private String cuponAplicado;
 }

@@ -36,41 +36,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.Period;
 import java.util.Locale;
 
-/**
- * Implementación principal del servicio de autenticación del sistema UD Marketplace.
- *
- * <p>Orquesta el flujo completo de autenticación en dos factores y el registro de usuarios:
- * <pre>
- * 
- * Registro — register():
- *   → Valida que el correo no esté previamente registrado
- *   → Calcula si el usuario es menor de edad a partir de la fecha de nacimiento
- *   → Exige y valida PDF de autorización si aplica
- *   → Codifica la contraseña con bcrypt antes de persistir
- *   → Guarda el usuario activo con su información básica
- *
- * Paso 1 — login():
- *   → Verifica bloqueo temporal de la cuenta
- *   → Valida correo y contraseña con bcrypt
- *   → Registra el intento
- *   → Bloquea si se supera el máximo de intentos 
- *   → Genera y envía código 2FA con expiración de 10 min
- *
- * Paso 2 — verifyTwoFactor():
- *   → Valida el código 2FA y su expiración
- *   → Limpia el código para prevenir reutilización
- *   → Emite JWT con userId, correo y rol 
- *
- * logout():
- *   → Delega al TokenBlacklistService para invalidar el token
- * </pre>
- *
- * @version 1.2
- * @since 2026-05-28
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -85,162 +52,115 @@ public class AuthServiceImpl implements AuthService {
     private final IntentoFallidoAuthRepository intentoFallidoRepo;
     private final FileValidationService fileValidationService;
 
-    /** Número máximo de intentos fallidos antes de bloquear la cuenta. */
     @Value("${app.auth.max-intentos-fallidos:5}")
     private int maxIntentosFallidos;
 
-    /** Duración en minutos del bloqueo temporal de cuenta. */
     @Value("${app.auth.minutos-bloqueo:30}")
     private int minutosBloqueo;
 
-    /**
-     * Registra un nuevo usuario en el sistema.
-     *
-     * <p>Calcula si el usuario es menor de edad a partir de su fecha de nacimiento.
-     * Si el usuario es menor, exige un PDF de autorización válido del representante legal.
-     * La contraseña se transforma con bcrypt antes de guardarse.
-     *
-     * @param request datos de registro enviados por el cliente
-     * @param pdfAutorizacion archivo PDF de autorización para usuarios menores de edad
-     * @return respuesta con la información básica del usuario creado
-     */
+    @Override
+    @Transactional
+    public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
+        String correoInstitucional = normalizarCorreoInstitucional(request.getCorreoInstitu());
+        validarDominioCorreo(correoInstitucional);
 
-@Override
-@Transactional
-public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutorizacion) {
-    String correoInstitucional = normalizarCorreoInstitucional(request.getCorreoInstitu());
-
-    validarDominioCorreo(correoInstitucional);
-
-    if (userRepository.findByCorreoUsuario(correoInstitucional).isPresent()) {
-        throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
-    }
-
-    if (request.getFechaNacimiento() == null) {
-        throw new IllegalArgumentException("La fecha de nacimiento es obligatoria");
-    }
-
-    if (request.getPermisoUser() == null || request.getPermisoUser().trim().isEmpty()) {
-        throw new IllegalArgumentException("El rol del usuario es obligatorio");
-    }
-
-    final boolean menorEdad = esMenorDeEdad(request.getFechaNacimiento());
-    final Role rol;
-
-    try {
-        rol = Role.valueOf(request.getPermisoUser().trim().toUpperCase(java.util.Locale.ROOT));
-    } catch (IllegalArgumentException ex) {
-        throw new IllegalArgumentException("El rol solicitado no es válido");
-    }
-
-    if (menorEdad) {
-        fileValidationService.validatePdf(pdfAutorizacion);
-    }
-
-    User user = crearSubtipoUsuario(rol);
-    user.setPrimerNombre(request.getPrimerNombre());
-    user.setSegundoNombre(request.getSegundoNombre());
-    user.setPrimerApellido(request.getPrimerApellido());
-    user.setSegundoApellido(request.getSegundoApellido());
-    user.setTipoDocumento(request.getTipoDocumento());
-    user.setNumeroDocumento(request.getNumeroDocumento());
-    user.setLugarNacimiento(request.getLugarNacimiento());
-    user.setFechaNacimiento(request.getFechaNacimiento());
-    user.setCorreoUsuario(correoInstitucional);
-    user.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
-    user.setGenero(request.getGenero());
-    user.setTelUser(request.getTelUser());
-    user.setActivo(true);
-    user.setEstadoCuenta(EstadoCuenta.ACTIVA);
-    user.setMenorEdad(menorEdad);
-    user.setRolUsua(rol);
-    user.setCodigoEstudiantil(request.getCodigoEstudiantil());
-    user.setEstadoAcademico(request.getEstadoAcademico());
-    user.setProyectoCurricular(request.getProyectoCurricular());
-
-    if (menorEdad) {
-        try {
-            user.setPermisoUserMenor(pdfAutorizacion.getBytes());
-        } catch (IOException e) {
-            throw new IllegalArgumentException("No fue posible procesar el PDF de autorización");
+        if (userRepository.findByCorreoUsuario(correoInstitucional).isPresent()) {
+            throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
         }
-    } else {
-        user.setPermisoUserMenor(null);
+
+        Role rolSolicitado;
+        try {
+            rolSolicitado = Role.valueOf(request.getPermisoUser().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new OperacionNoPermitidaException("El rol solicitado no es válido");
+        }
+
+        User nuevoUsuario = crearUsuarioPorRol(rolSolicitado);
+        nuevoUsuario.setTipoDocumento(request.getTipoDocumento());
+        nuevoUsuario.setNumeroDocumento(request.getNumeroDocumento());
+        nuevoUsuario.setPrimerNombre(request.getPrimerNombre());
+        nuevoUsuario.setSegundoNombre(request.getSegundoNombre());
+        nuevoUsuario.setPrimerApellido(request.getPrimerApellido());
+        nuevoUsuario.setSegundoApellido(request.getSegundoApellido());
+        nuevoUsuario.setLugarNacimiento(request.getLugarNacimiento());
+        nuevoUsuario.setFechaNacimiento(request.getFechaNacimiento());
+        nuevoUsuario.setTelUser(request.getTelUser());
+        nuevoUsuario.setGenero(request.getGenero());
+        nuevoUsuario.setCorreoUsuario(correoInstitucional);
+        nuevoUsuario.setPasswordUsua(passwordEncoder.encode(request.getPassword()));
+        nuevoUsuario.setCodigoEstudiantil(request.getCodigoEstudiantil());
+        nuevoUsuario.setEstadoAcademico(request.getEstadoAcademico());
+        nuevoUsuario.setProyectoCurricular(request.getProyectoCurricular());
+        nuevoUsuario.setRolUsua(rolSolicitado);
+        nuevoUsuario.setEstadoCuenta(EstadoCuenta.ACTIVA);
+        nuevoUsuario.setActivo(true);
+
+        boolean menorEdad = request.getFechaNacimiento() != null
+                && request.getFechaNacimiento().isAfter(LocalDate.now().minusYears(18));
+        nuevoUsuario.setMenorEdad(menorEdad);
+
+        if (menorEdad) {
+            fileValidationService.validatePdf(pdfAutorizacion);
+            try {
+                nuevoUsuario.setPermisoUserMenor(pdfAutorizacion.getBytes());
+            } catch (IOException ex) {
+                throw new OperacionNoPermitidaException("No fue posible procesar el PDF de autorización");
+            }
+        }
+
+        User usuarioGuardado = userRepository.save(nuevoUsuario);
+        UserInfoResponse response = userMapper.toUserInfoResponse(usuarioGuardado);
+        if (response != null) {
+            return response;
+        }
+        return new UserInfoResponse(
+                usuarioGuardado.getCodigoUsua(),
+                usuarioGuardado.getCorreoUsuario(),
+                usuarioGuardado.getRolUsua() != null ? usuarioGuardado.getRolUsua().name() : null,
+                usuarioGuardado.getPrimerNombre(),
+                usuarioGuardado.getSegundoNombre(),
+                usuarioGuardado.getPrimerApellido(),
+                usuarioGuardado.getSegundoApellido(),
+                usuarioGuardado.getGenero(),
+                usuarioGuardado.getFechaNacimiento()
+        );
     }
 
-    User savedUser;
-    try {
-        savedUser = userRepository.save(user);
-    } catch (org.springframework.dao.DataIntegrityViolationException ex) {
-        throw new OperacionNoPermitidaException("El correo institucional ya se encuentra registrado");
-    }
-    log.info("Usuario registrado exitosamente con correo '{}'", savedUser.getCorreoUsuario());
-
-    return new UserInfoResponse(
-        savedUser.getCodigoUsua(),
-        savedUser.getCorreoUsuario(),
-        savedUser.getRolUsua().name(),
-        savedUser.getPrimerNombre(),
-        savedUser.getSegundoNombre(),
-        savedUser.getPrimerApellido(),
-        savedUser.getSegundoApellido(),
-        savedUser.getGenero(),
-        savedUser.getFechaNacimiento()
-);
-}
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Implementa registro de intentos y bloqueo temporal.
-     */
     @Override
     @Transactional
     public LoginStepResponse login(LoginRequest request, String ipOrigen) {
-        String correoUsuario = normalizarCorreoInstitucional(request.getCorreoUsuario());
+        String correoUsuario = normalizar(request.getCorreoUsuario());
         User user = userRepository.findByCorreoUsuario(correoUsuario).orElse(null);
 
-        if (user != null && !estaCuentaHabilitada(user)) {
-            registrarIntento(correoUsuario, user.getCodigoUsua(), ipOrigen, false);
+        if (user != null && !user.isActivo()) {
+            registrarIntento(correoUsuario, ipOrigen, false, user.getCodigoUsua());
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
 
-        // verificar bloqueo antes de intentar validar credenciales
         if (user != null && user.getBloqueadoHasta() != null
                 && user.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
-            registrarIntento(correoUsuario, user.getCodigoUsua(), ipOrigen, false);
-            throw new AccountBlockedException(
-                    "Cuenta bloqueada temporalmente. Intente de nuevo después de: "
+            registrarIntento(correoUsuario, ipOrigen, false, user.getCodigoUsua());
+            throw new AccountBlockedException("Cuenta bloqueada temporalmente. Intente después de: "
                     + user.getBloqueadoHasta());
         }
 
         if (user == null || !passwordEncoder.matches(request.getPasswordUsua(), user.getPasswordUsua())) {
-            // registrar el intento fallido con IP, fecha y hora
-            registrarIntento(correoUsuario, user != null ? user.getCodigoUsua() : null, ipOrigen, false);
-            // bloquear si se alcanzó el umbral de intentos
+            registrarIntento(correoUsuario, ipOrigen, false, user != null ? user.getCodigoUsua() : null);
             verificarYBloquearCuenta(user, correoUsuario);
             throw new InvalidCredentialsException("Credenciales inválidas");
         }
 
         twoFactorService.generateAndSendCode(user);
-        log.debug("Login exitoso para '{}', código 2FA enviado", user.getCorreoUsuario());
+        log.debug("2FA enviado para: {}", user.getCorreoUsuario());
 
-        return new LoginStepResponse(
-                "TWO_FACTOR_REQUIRED",
-                user.getCorreoUsuario(),
-                "Se ha enviado un código de verificación a tu email registrado"
-        );
+        return new LoginStepResponse("TWO_FACTOR_REQUIRED", user.getCorreoUsuario(),
+                "Se ha enviado un código de verificación a tu email registrado");
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Implementa incluyendo {@code userId} en el JWT generado.
-     */
     @Override
     @Transactional
     public LoginResponse verifyTwoFactor(TwoFactorRequest request) {
-        String correoUsuario = normalizarCorreoInstitucional(request.getCorreoUsuario());
+        String correoUsuario = normalizar(request.getCorreoUsuario());
         User user = userRepository.findByCorreoUsuario(correoUsuario)
                 .orElseThrow(() -> new InvalidCredentialsException("Credenciales inválidas"));
 
@@ -248,31 +168,22 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
             throw new TwoFactorException("Código de verificación inválido o expirado");
         }
 
-        // Limpiar código y bloqueo previo tras autenticación exitosa
         user.setTwoFactorCode(null);
         user.setTwoFactorExpiry(null);
         user.setBloqueadoHasta(null);
         userRepository.save(user);
 
-        // incluir userId en el JWT para asociar el token con el usuario
-        String token = jwtUtil.generateToken(
-                user.getCorreoUsuario(),
-                user.getRolUsua().name(),
-                user.getCodigoUsua()
-        );
-        log.debug("JWT emitido para '{}' con rol '{}'", user.getCorreoUsuario(), user.getRolUsua());
+        String token = jwtUtil.generateToken(user.getCorreoUsuario(), user.getRolUsua().name(), user.getCodigoUsua());
+        log.debug("JWT emitido para: {}", user.getCorreoUsuario());
 
         return new LoginResponse(token, user.getCorreoUsuario(), user.getRolUsua().name(), "Bearer");
     }
 
-    /** {@inheritDoc} */
     @Override
     public void logout(String token) {
         tokenBlacklistService.invalidateToken(token);
-        log.debug("Token invalidado (logout)");
     }
 
-    /** {@inheritDoc} */
     @Override
     public UserInfoResponse getCurrentUser(String correoUsuario) {
         User user = userRepository.findByCorreoUsuario(correoUsuario)
@@ -280,44 +191,11 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
         return userMapper.toUserInfoResponse(user);
     }
 
-    /**
-     * Instancia el subtipo correcto de usuario según el rol.
-     * Es imprescindible para que JPA JOINED inheritance cree la fila en la tabla del subtipo.
-     */
-    private User crearSubtipoUsuario(Role rol) {
-        return switch (rol) {
-            case VENDEDOR -> {
-                Vendedor v = new Vendedor();
-                v.setCalificacion(java.math.BigDecimal.ZERO);
-                yield v;
-            }
-            case COMPRADOR -> new Comprador();
-            case ADMINISTRADOR -> new Administrador();
-        };
+    private String normalizar(String correo) {
+        return correo != null ? correo.trim().toLowerCase(Locale.ROOT) : null;
     }
 
-    /**
-     * Determina si una persona es menor de edad con base en su fecha de nacimiento.
-     *
-     * @param fechaNacimiento fecha de nacimiento del usuario
-     * @return {@code true} si la edad calculada es menor a 18 años
-     */
-    private boolean esMenorDeEdad(LocalDate fechaNacimiento) {
-        if (fechaNacimiento == null) {
-            throw new IllegalArgumentException("La fecha de nacimiento es obligatoria");
-        }
-        return Period.between(fechaNacimiento, LocalDate.now()).getYears() < 18;
-    }
-
-    /**
-     * Persiste un intento de autenticación con el identificador del usuario cuando está disponible.
-     *
-     * @param correo correo electrónico utilizado en el intento
-     * @param codigoUsuario identificador del usuario asociado, o {@code null}
-     * @param ip dirección IP de origen de la solicitud
-     * @param exitoso {@code true} si el intento fue exitoso
-     */
-    private void registrarIntento(String correo, Long codigoUsuario, String ip, boolean exitoso) {
+    private void registrarIntento(String correo, String ip, boolean exitoso, Long codigoUsuario) {
         intentoFallidoRepo.save(IntentoFallidoAuth.builder()
                 .correoIntentado(correo)
                 .codigoUsuario(codigoUsuario)
@@ -327,13 +205,14 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
                 .build());
     }
 
-    /**
-     * Verifica si el usuario alcanzó el máximo de intentos fallidos en la
-     * ventana de 10 minutos y, de ser así, bloquea la cuenta (REQ-03).
-     *
-     * @param user   entidad del usuario (puede ser {@code null} si el correo no existe)
-     * @param correo correo electrónico que se intentó usar
-     */
+    private User crearUsuarioPorRol(Role rolSolicitado) {
+        return switch (rolSolicitado) {
+            case ADMINISTRADOR -> new Administrador();
+            case VENDEDOR -> new Vendedor();
+            case COMPRADOR -> new Comprador();
+        };
+    }
+
     private void verificarYBloquearCuenta(User user, String correo) {
         if (user == null) return;
         LocalDateTime ventana = LocalDateTime.now().minusMinutes(10);
@@ -341,7 +220,7 @@ public UserInfoResponse register(RegisterRequest request, MultipartFile pdfAutor
         if (fallos >= maxIntentosFallidos) {
             user.setBloqueadoHasta(LocalDateTime.now().plusMinutes(minutosBloqueo));
             userRepository.save(user);
-            log.warn("Cuenta '{}' bloqueada temporalmente hasta {}", correo, user.getBloqueadoHasta());
+            log.warn("Cuenta '{}' bloqueada hasta {}", correo, user.getBloqueadoHasta());
         }
     }
 

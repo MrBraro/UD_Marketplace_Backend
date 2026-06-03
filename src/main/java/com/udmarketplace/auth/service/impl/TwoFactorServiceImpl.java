@@ -53,7 +53,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         // El código expira en el tiempo configurado (máximo 10 min por RNF)
         user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(minutosExpiryTwoFactor));
         userRepository.save(user);
-        emailService.sendTwoFactorCode(user.getCorreoUsuario(), code);
+        emailService.sendTwoFactorCode(user, code, minutosExpiryTwoFactor);
         log.debug("Código 2FA generado para usuario: {}", user.getCorreoUsuario());
     }
 

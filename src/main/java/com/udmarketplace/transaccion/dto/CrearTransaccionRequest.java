@@ -19,4 +19,7 @@ public class CrearTransaccionRequest {
     /** Identificador del producto que el comprador desea adquirir (obligatorio). */
     @NotNull(message = "El producto es obligatorio")
     private Long idPub;
+
+    /** Código de cupón de descuento opcional. Si es inválido se ignora sin error. */
+    private String codigoCupon;
 }

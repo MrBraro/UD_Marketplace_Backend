@@ -112,8 +112,11 @@ app.auth.minutos-bloqueo=30          # Duración del bloqueo temporal
 app.auth.minutos-expiry-2fa=10       # Vigencia del código 2FA
 app.auth.minutos-expiry-token-recuperacion=60
 
-# Backend Python (emails / geolocalización)
-app.python.base-url=http://localhost:5000   # ← Cambiar al URL real
+# Backend Python (microservicios externos)
+app.python.mail-base-url=http://localhost:8002
+app.python.mail-api-key=
+app.python.coupon-base-url=http://localhost:8001
+app.python.report-base-url=http://localhost:8004
 
 # Archivos adjuntos
 spring.servlet.multipart.max-file-size=5MB
@@ -126,6 +129,13 @@ spring.servlet.multipart.max-request-size=10MB
 # Requisito: MySQL corriendo con la BD "marketplace" creada
 mvn spring-boot:run
 # Servidor disponible en http://localhost:8080
+```
+
+### Compilación y pruebas
+
+```bash
+# Ejecuta compilación + pruebas unitarias
+mvn test
 ```
 
 ---
@@ -391,7 +401,7 @@ mvn spring-boot:run
 
 ---
 
-#### POST `/api/auth/recover-password` — Solicitar recuperación de contraseña
+#### POST `/api/auth/recuperar-password` — Solicitar recuperación de contraseña
 
 **Acceso:** Público
 
@@ -768,6 +778,16 @@ mvn spring-boot:run
 
 ---
 
+#### GET `/api/buyer/cupones` — Listar cupones disponibles del comprador
+
+**Acceso:** `COMPRADOR`
+
+**Headers:** Requiere cabecera Authorization con JWT Bearer.
+
+**Response 200:** JSON retornado por el microservicio de cupones.
+
+---
+
 ### 6.5 Módulo PQR
 
 #### POST `/api/pqrs` — Crear PQR
@@ -919,6 +939,21 @@ mvn spring-boot:run
 
 ---
 
+#### GET `/api/reportes-externos/{radicado}` — Consultar estado de reporte externo
+
+**Acceso:** Autenticado
+
+**Response 200:** estado del reporte en el microservicio Python de reportes.
+
+**Códigos de respuesta:**
+
+| Código | Situación |
+|--------|-----------|
+| 200 | Reporte externo encontrado |
+| 404 | Radicado externo no existe |
+
+---
+
 ### 6.6 Módulo Valoraciones
 
 #### POST `/api/buyer/valoraciones` — Registrar valoración
@@ -1067,41 +1102,3 @@ Al arrancar, `DataSeeder` crea automáticamente tres usuarios si no existen:
 > **⚠️ Estos usuarios son solo para desarrollo.** 
 
 ---
-
-## 9. OpenAPI y Documentación interactiva (Swagger UI)
-
-El backend expone la especificación OpenAPI 3.0 de forma automática y ofrece una interfaz interactiva para realizar pruebas sobre las rutas públicas y protegidas (usando la opción **Authorize** e introduciendo el token JWT de sesión en formato Bearer).
-
-- **Swagger UI interactivo:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- **JSON de Especificación OpenAPI:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-
----
-
-## 10. Gestión de Respaldos de Base de Datos (Backups)
-
-Se proporcionan scripts automatizados en la carpeta `database/` para realizar respaldos diarios y seguros de la base de datos MySQL con rotación y retención de 7 días.
-
-### Linux y macOS (`backup.sh`)
-Usa `mysqldump` para generar archivos comprimidos en formato `.sql.gz`.
-- **Uso:** `bash database/backup.sh`
-- **Automatización (Cron a las 2:00 AM diario):**
-  ```bash
-  0 2 * * * /ruta/al/proyecto/database/backup.sh >> /var/log/ud_marketplace_backup.log 2>&1
-  ```
-
-### Windows (`backup.bat`)
-Script batch equivalente para sistemas Windows.
-- **Uso:** `database\backup.bat`
-- **Automatización:** Programar una tarea básica diaria mediante el **Programador de Tareas** de Windows apuntando al script.
-
----
-
-## 11. Registro de Auditoría (Audit Log)
-
-El sistema cuenta con una tabla física de auditoría `audit_log` y un servicio integrado (`AuditService`) que registra automáticamente las acciones críticas que ocurran en el backend:
-
-- **USUARIO_MODIFICADO:** Registra cambios en los perfiles de usuario realizados por un administrador, especificando un detalle con el antes y el después de cada campo modificado.
-- **TRANSACCION_CONFIRMADA:** Registra cuándo un vendedor confirma una compra y se genera una entrega.
-- **PQR_CERRADA:** Registra el cierre de una PQR por parte de un administrador.
-
-Cada registro guarda la fecha/hora, el identificador y el correo de quien ejecutó la acción, el ID del recurso afectado y una descripción detallada. Las inserciones se ejecutan utilizando transacciones independientes (`PROPAGATION_REQUIRES_NEW`), lo que asegura que el log quede grabado de forma definitiva incluso si la transacción principal falla o es cancelada por reglas de negocio posteriores.

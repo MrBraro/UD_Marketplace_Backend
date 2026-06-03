@@ -24,6 +24,40 @@ Paso 2: POST /api/auth/verifyTwoFactor
 
 No requieren cabecera `Authorization`.
 
+### Registro de usuario
+Permite crear un usuario con datos personales/académicos y rol inicial.
+
+- **Método:** `POST`
+- **Ruta:** `/api/auth/register`
+- **Cabeceras:** `Content-Type: multipart/form-data`
+- **Partes del Request:**
+  - `datos` (JSON, obligatorio): `RegisterRequest`
+  - `pdfAutorizacion` (archivo PDF, opcional): obligatorio solo cuando el usuario es menor de edad
+- **Reglas de negocio:**
+  - El correo debe pertenecer al dominio `@udistrital.edu.co`
+  - El correo no puede existir previamente
+  - El rol inicial se define por `permisoUser` (`ADMINISTRADOR`, `VENDEDOR`, `COMPRADOR`)
+  - Si `fechaNacimiento` indica menor de edad, se exige `pdfAutorizacion` válido
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "codigoUsua": 15,
+    "correoUsuario": "estudiante@udistrital.edu.co",
+    "rolUsua": "COMPRADOR",
+    "primerNombre": "Laura",
+    "segundoNombre": "María",
+    "primerApellido": "Gómez",
+    "segundoApellido": "Pérez",
+    "genero": "Femenino",
+    "fechaNacimiento": "2000-06-15"
+  }
+  ```
+- **Errores frecuentes:**
+  - `400 Bad Request`: datos inválidos o archivo de autorización inválido
+  - `422 Unprocessable Entity`: correo duplicado, dominio no permitido o rol inválido
+
+---
+
 ### 1. Iniciar Proceso de Login (Paso 1)
 Valida las credenciales básicas y prepara el segundo factor.
 
@@ -206,126 +240,8 @@ Cargados automáticamente al arrancar la aplicación para pruebas:
 
 ---
 
-## 🔒 Endpoints de Administración de Usuarios (ADMINISTRADOR)
-Requieren la cabecera `Authorization: Bearer <token>` con rol `ADMINISTRADOR`.
+## Nota de alcance
 
-### 6. Listar Usuarios Registrados
-Retorna la lista de todos los usuarios registrados en el sistema, en formato resumido sin información confidencial.
-
-- **Método:** `GET`
-- **Ruta:** `/api/admin/usuarios`
-- **Cabeceras:** 
-  - `Authorization: Bearer <token>`
-- **Cuerpo del Request:** Vacío.
-- **Respuestas:**
-  - **`200 OK`:**
-    ```json
-    [
-      {
-        "codigoUsua": 2,
-        "correoUsuario": "seller1@udmarketplace.com",
-        "rolUsua": "VENDEDOR",
-        "primerNombre": "María",
-        "segundoNombre": "Isabel",
-        "primerApellido": "Rodríguez",
-        "segundoApellido": "Sánchez",
-        "genero": "F",
-        "fechaNacimiento": "1990-08-22"
-      }
-    ]
-    ```
-
----
-
-### 7. Obtener Detalle de Usuario por ID
-Retorna la información completa de un usuario específico.
-
-- **Método:** `GET`
-- **Ruta:** `/api/admin/usuarios/{id}`
-- **Cabeceras:** 
-  - `Authorization: Bearer <token>`
-- **Respuestas:**
-  - **`200 OK`:** (Detalle del usuario)
-  - **`404 Not Found` (Usuario no existe):**
-    ```json
-    {
-      "status": 404,
-      "message": "Usuario no encontrado: 99",
-      "timestamp": "2026-05-26T17:20:00"
-    }
-    ```
-
----
-
-### 8. Actualizar Datos de Usuario (Parcial/Total)
-Permite a un administrador actualizar los datos de un usuario. Solo se actualizan los campos que no sean nulos. Cada actualización se registra en el log de auditoría.
-
-- **Método:** `PUT`
-- **Ruta:** `/api/admin/usuarios/{id}`
-- **Cabeceras:** 
-  - `Authorization: Bearer <token>`
-  - `Content-Type: application/json`
-- **Cuerpo del Request (JSON):**
-  ```json
-  {
-    "primerNombre": "María Nuevo",
-    "activo": true
-  }
-  ```
-- **Respuestas:**
-  - **`200 OK`:** Retorna la información de usuario actualizada.
-  - **`404 Not Found`:** Si el usuario no existe.
-
----
-
-## 🔑 Recuperación de Contraseña
-
-### 9. Solicitar Recuperación
-Registra una solicitud de restablecimiento y envía un token por correo electrónico.
-
-- **Método:** `POST`
-- **Ruta:** `/api/auth/recuperar-password`
-- **Cabeceras:** `Content-Type: application/json`
-- **Cuerpo del Request (JSON):**
-  ```json
-  {
-    "correoUsuario": "usuario@udmarketplace.com"
-  }
-  ```
-- **Respuestas:**
-  - **`200 OK`:** (Siempre retorna 200)
-    ```json
-    {
-      "message": "Si el correo está registrado, recibirás las instrucciones de recuperación"
-    }
-    ```
-
-### 10. Restablecer Contraseña
-Restablece la contraseña de la cuenta con un token de recuperación válido.
-
-- **Método:** `POST`
-- **Ruta:** `/api/auth/reset-password`
-- **Cabeceras:** `Content-Type: application/json`
-- **Cuerpo del Request (JSON):**
-  ```json
-  {
-    "token": "token-recuperacion-uuid",
-    "nuevaPassword": "NuevaPassword123!"
-  }
-  ```
-- **Respuestas:**
-  - **`200 OK`:**
-    ```json
-    {
-      "message": "Contraseña actualizada exitosamente"
-    }
-    ```
-  - **`400 Bad Request` (Token inválido o expirado):**
-    ```json
-    {
-      "status": 400,
-      "message": "Token de recuperación inválido o expirado",
-      "timestamp": "2026-05-26T17:30:00"
-    }
-    ```
-
+Este documento describe únicamente contratos de autenticación/autorización.
+Los endpoints de integración con microservicios Python (cupones/reportes) se documentan en `README.md`
+en las secciones **6.4 Módulo Transacciones** y **6.5 Módulo PQR**.

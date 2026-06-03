@@ -17,6 +17,8 @@ import com.udmarketplace.pqr.model.Pqr;
 import com.udmarketplace.pqr.repository.InteraccionPqrRepository;
 import com.udmarketplace.pqr.repository.PqrRepository;
 import com.udmarketplace.pqr.service.PqrService;
+import com.udmarketplace.auth.service.PythonReportClientService;
+import com.udmarketplace.transaccion.dto.ReporteExternoDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,7 +63,10 @@ public class PqrServiceImpl implements PqrService {
     /** Repositorio de usuarios para obtener el creador de la PQR y los administradores. */
     private final UserRepository userRepository;
 
-    /** Servicio de auditoría para registrar cierres de PQR (REQ-06). */
+    /** Cliente del report service Python para radicado externo. */
+    private final PythonReportClientService pythonReportClient;
+
+    /** Servicio de auditoría para eventos de negocio sensibles. */
     private final AuditService auditService;
 
     /**
@@ -98,7 +103,22 @@ public class PqrServiceImpl implements PqrService {
             }
         }
 
-        return toDto(pqrRepository.save(pqr));
+        Pqr savedPqr = pqrRepository.save(pqr);
+
+        // Registrar en el report service Python para obtener radicado externo de seguimiento
+        PqrDto dto = toDto(savedPqr);
+        String nombreCompleto = usuario.getPrimerNombre() + " " + usuario.getPrimerApellido();
+        ReporteExternoDto reporte = pythonReportClient.crearReporte(
+                nombreCompleto,
+                usuario.getCorreoUsuario(),
+                request.getTipoPqr(),
+                "PQR #" + savedPqr.getRadicado() + " — " + request.getTipoPqr(),
+                request.getDescripcionPqr()
+        );
+        if (reporte != null) {
+            dto.setRadicadoExterno(reporte.getRadicado());
+        }
+        return dto;
     }
 
     /**

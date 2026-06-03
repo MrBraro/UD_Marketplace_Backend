@@ -67,8 +67,9 @@ class TwoFactorServiceImplTest {
         ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
 
         verify(emailService).sendTwoFactorCode(
-                eq("cesar@udistrital.edu.co"),
-                codeCaptor.capture()
+                eq(user),
+                codeCaptor.capture(),
+                eq(10)
         );
 
         assertEquals(user.getTwoFactorCode(), codeCaptor.getValue());
