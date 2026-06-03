@@ -19,6 +19,8 @@ services:
     volumes:
       # Persistent local storage for MySQL data files
       - mysql-data:/var/lib/mysql
+      # Initialize database schema and seed data
+      - ./database/marketplace.sql:/docker-entrypoint-initdb.d/marketplace.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pMySQL"]
       interval: 10s
@@ -49,6 +51,9 @@ services:
       SPRING_DATASOURCE_USERNAME: marketplace_user
       SPRING_DATASOURCE_PASSWORD: marketplace_pass
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+      
+      # JWT Signature Secret Key
+      JWT_SECRET: UdMarketplace_SuperSecretKey_2024_MustBe32CharsOrMore!
       
       # Automatically construct/verify database tables (safe for local development and demos)
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
