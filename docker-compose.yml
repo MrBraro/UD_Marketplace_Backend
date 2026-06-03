@@ -1,0 +1,73 @@
+version: '3.9'
+
+services:
+  # ==========================================
+  #  MySQL 8.0 Database Service
+  # ==========================================
+  mysql-db:
+    image: mysql:8.0
+    container_name: marketplace-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: MySQL
+      MYSQL_DATABASE: marketplace
+      MYSQL_USER: marketplace_user
+      MYSQL_PASSWORD: marketplace_pass
+      TZ: 'America/Bogota'
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persistent local storage for MySQL data files
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pMySQL"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - marketplace-network
+
+  # ==========================================
+  #  Spring Boot Backend Application Service
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: marketplace-app
+    restart: unless-stopped
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Database connection configuration (overrides application.properties placeholders)
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/marketplace?useSSL=false&serverTimezone=America/Bogota&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_DRIVER: com.mysql.cj.jdbc.Driver
+      SPRING_DATASOURCE_USERNAME: marketplace_user
+      SPRING_DATASOURCE_PASSWORD: marketplace_pass
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+      
+      # Automatically construct/verify database tables (safe for local development and demos)
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      
+      # API clients endpoints configuration (external python microservices)
+      APP_PYTHON_MAIL_BASE_URL: http://host.docker.internal:8002
+      APP_PYTHON_COUPON_BASE_URL: http://host.docker.internal:8001
+      APP_PYTHON_REPORT_BASE_URL: http://host.docker.internal:8004
+    networks:
+      - marketplace-network
+
+# ==========================================
+#  Storage Volumes and Virtual Networks
+# ==========================================
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  marketplace-network:
+    driver: bridge
