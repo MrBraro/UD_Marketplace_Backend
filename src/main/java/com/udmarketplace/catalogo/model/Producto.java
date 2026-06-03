@@ -65,7 +65,11 @@ public class Producto {
     /** Indica si el producto está disponible para ser comprado. */
     @Builder.Default
     @Column(name = "disponibilidad", columnDefinition = "TINYINT(1) DEFAULT 1")
-    private boolean disponibilidad = true;
+    private Boolean disponibilidad = true;
+
+    public boolean isDisponibilidad() {
+        return disponibilidad != null && disponibilidad;
+    }
 
     /** Categoría del catálogo a la que pertenece el producto. */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -83,5 +87,9 @@ public class Producto {
     /** Indica si el producto está activo. {@code false} representa eliminación lógica */
     @Builder.Default
     @Column(name = "activo_pub", columnDefinition = "TINYINT(1) DEFAULT 1")
-    private boolean activoPub = true;
+    private Boolean activoPub = true;
+
+    public boolean isActivoPub() {
+        return activoPub != null && activoPub;
+    }
 }

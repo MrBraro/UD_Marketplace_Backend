@@ -39,7 +39,11 @@ public class Categoria {
     /** Indica si la categoría está activa. {@code false} representa eliminación lógica. */
     @Builder.Default
     @Column(name = "activo_cat", columnDefinition = "TINYINT(1) DEFAULT 1")
-    private boolean activoCat = true;
+    private Boolean activoCat = true;
+
+    public boolean isActivoCat() {
+        return activoCat != null && activoCat;
+    }
 
     /** Descripción opcional de la categoría (máximo 500 caracteres). */
     @Column(name = "descripcion_cat", length = 500)
