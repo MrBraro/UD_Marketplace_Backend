@@ -35,5 +35,10 @@ public class ResenaPredefinida {
 
     /** Indica si la reseña está disponible para selección ({@code true}) o fue desactivada ({@code false}). */
     @Column(name = "activo")
-    private boolean activo = true;
+    @Builder.Default
+    private Boolean activo = true;
+
+    public boolean isActivo() {
+        return activo != null && activo;
+    }
 }
