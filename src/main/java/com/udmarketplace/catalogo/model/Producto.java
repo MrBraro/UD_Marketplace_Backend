@@ -63,7 +63,8 @@ public class Producto {
     private BigDecimal precioPub;
 
     /** Indica si el producto está disponible para ser comprado. */
-    @Column(name = "disponibilidad")
+    @Builder.Default
+    @Column(name = "disponibilidad", columnDefinition = "TINYINT(1) DEFAULT 1")
     private boolean disponibilidad = true;
 
     /** Categoría del catálogo a la que pertenece el producto. */
@@ -80,6 +81,7 @@ public class Producto {
     private LocalDateTime fechaRegistro;
 
     /** Indica si el producto está activo. {@code false} representa eliminación lógica */
-    @Column(name = "activo_pub")
+    @Builder.Default
+    @Column(name = "activo_pub", columnDefinition = "TINYINT(1) DEFAULT 1")
     private boolean activoPub = true;
 }
