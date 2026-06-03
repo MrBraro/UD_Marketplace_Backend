@@ -115,5 +115,8 @@ public class RecuperacionPasswordServiceImpl implements RecuperacionPasswordServ
         tokenRecuperacionRepo.save(tokenRec);
 
         log.info("Contraseña actualizada para: {}", user.getCorreoUsuario());
+
+        // Notificar al usuario que su contraseña cambió (alerta de seguridad)
+        pythonEmailClient.notificarPasswordCambiado(user, null);
     }
 }

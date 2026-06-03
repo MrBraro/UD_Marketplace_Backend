@@ -17,10 +17,12 @@ import com.udmarketplace.transaccion.model.Orden;
 import com.udmarketplace.transaccion.repository.DetalleOrdenEntregaRepository;
 import com.udmarketplace.transaccion.repository.OrdenRepository;
 import com.udmarketplace.transaccion.service.TransaccionService;
+import com.udmarketplace.auth.service.PythonCouponClientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,6 +61,9 @@ public class TransaccionServiceImpl implements TransaccionService {
     /** Repositorio de productos para obtener el producto y verificar disponibilidad. */
     private final ProductoRepository productoRepository;
 
+    /** Cliente del coupon service Python para aplicar descuentos. */
+    private final PythonCouponClientService pythonCouponClient;
+
     /**
      * {@inheritDoc}
      *
@@ -84,18 +89,34 @@ public class TransaccionServiceImpl implements TransaccionService {
             throw new OperacionNoPermitidaException("No puedes registrar intención de compra sobre tu propio producto");
         }
 
-        // asociar comprador, vendedor y producto
+        // Aplicar cupón de descuento si fue proporcionado
+        BigDecimal totalCompra = producto.getPrecioPub();
+        String cuponAplicado = null;
+        if (request.getCodigoCupon() != null && !request.getCodigoCupon().isBlank()) {
+            BigDecimal precioConDescuento = pythonCouponClient.aplicarCupon(
+                    comprador.getCorreoUsuario(),
+                    request.getCodigoCupon().trim(),
+                    totalCompra
+            );
+            if (precioConDescuento != null) {
+                totalCompra = precioConDescuento;
+                cuponAplicado = request.getCodigoCupon().trim();
+            }
+        }
+
         Orden orden = Orden.builder()
                 .comprador(comprador)
                 .vendedor(producto.getVendedor())
                 .producto(producto)
-                .totalCompra(producto.getPrecioPub())
+                .totalCompra(totalCompra)
                 .estadoOrden(EstadoOrden.PENDIENTE.name())
                 .fechaCompr(LocalDate.now())
                 .datetimeCompra(LocalDateTime.now())
                 .build();
 
-        return toDto(ordenRepository.save(orden));
+        TransaccionDto dto = toDto(ordenRepository.save(orden));
+        dto.setCuponAplicado(cuponAplicado);
+        return dto;
     }
 
     /**

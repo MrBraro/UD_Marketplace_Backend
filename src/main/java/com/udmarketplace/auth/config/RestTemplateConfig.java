@@ -2,32 +2,30 @@ package com.udmarketplace.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Configuración del cliente HTTP {@link RestTemplate} para llamadas al backend Python.
+ * Configuración del cliente HTTP {@link RestTemplate} para llamadas al microservicio
+ * Python de correos (C2C-UD email service).
  *
- * <p>Registra un bean de {@link RestTemplate} en el contexto de Spring para ser
- * inyectado en los servicios que necesiten comunicarse con el backend Python
- * de gestión de correos y geolocalización.
- *
- * <p>En caso de requerir timeouts personalizados o interceptores de logging,
- * este bean puede extenderse con {@link org.springframework.http.client.SimpleClientHttpRequestFactory}.
- *
- * @author Daniel Perez
- * @version 1.0
- * @since 2026-05-28
+ * <p>Establece timeouts de conexión y lectura para evitar que el hilo de Spring
+ * quede bloqueado indefinidamente cuando el email service no está disponible.
  */
 @Configuration
 public class RestTemplateConfig {
 
-    /**
-     * Crea y registra una instancia de {@link RestTemplate} con configuración por defecto.
-     *
-     * @return instancia de RestTemplate lista para inyección
-     */
+    /** Tiempo máximo en ms para establecer la conexión TCP con el servicio externo. */
+    private static final int CONNECT_TIMEOUT_MS = 3_000;
+
+    /** Tiempo máximo en ms para recibir datos una vez abierta la conexión. */
+    private static final int READ_TIMEOUT_MS = 5_000;
+
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        factory.setReadTimeout(READ_TIMEOUT_MS);
+        return new RestTemplate(factory);
     }
 }

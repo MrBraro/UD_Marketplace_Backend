@@ -1,43 +1,68 @@
 package com.udmarketplace.auth.service;
 
+import com.udmarketplace.auth.model.User;
+
 /**
- * Contrato para la comunicación HTTP con el backend Python encargado del envío de correos.
+ * Cliente HTTP hacia el mail service Python (C2C-UD).
  *
- * <p>El backend Python (gestor de correos y geolocalización) expone endpoints REST que
- * este cliente invoca para enviar correos transaccionales del sistema:
+ * <p>Todos los endpoints requieren el header {@code X-API-Key}.
+ * Si el servicio no está disponible, cada método falla silenciosamente
+ * (degradación elegante) sin interrumpir el flujo de Java.
+ *
+ * <p>Contratos consumidos del mail service:
  * <ul>
- *   <li>Correos de recuperación de contraseña con token único</li>
- *   <li>Códigos de verificación en dos pasos (2FA)</li>
+ *   <li>POST /api/v1/emails/auth/send-otp              — código 2FA</li>
+ *   <li>POST /api/v1/emails/auth/register-confirmation — bienvenida tras registro</li>
+ *   <li>POST /api/v1/emails/auth/password-changed      — alerta de cambio de contraseña</li>
+ *   <li>POST /api/v1/emails/moderation/account-suspended — suspensión de cuenta</li>
  * </ul>
- *
- * <p>Cuando el equipo Python defina y despliegue los contratos, la implementación
- * {@link impl.PythonEmailClientServiceImpl} se conecta automáticamente al endpoint real
- * usando la URL configurada en {@code app.python.base-url}.
- *
- * <p>En entornos de desarrollo, si el Python no está disponible, la implementación
- * actúa como stub: registra los datos en los logs para permitir pruebas end-to-end
- * sin depender del servicio externo (degradación elegante).
- *
- * @author Daniel Perez
- * @version 1.0
- * @since 2026-05-28
  */
 public interface PythonEmailClientService {
 
     /**
-     * Solicita al backend Python que envíe un correo de recuperación de contraseña.
+     * Envía el código OTP de 6 dígitos para el segundo factor de autenticación.
+     * Llama a {@code POST /api/v1/emails/auth/send-otp}.
      *
-     * @param destinatario correo del usuario
-     * @param token        token único de recuperación
+     * @param user              usuario destinatario
+     * @param otpCode           código numérico de 6 dígitos
+     * @param expirationMinutes minutos de vigencia del código (máx 10)
+     */
+    void enviarCodigo2FA(User user, String otpCode, int expirationMinutes);
+
+    /**
+     * Envía el correo de confirmación de registro exitoso.
+     * Llama a {@code POST /api/v1/emails/auth/register-confirmation}.
+     *
+     * @param user usuario recién registrado
+     */
+    void enviarConfirmacionRegistro(User user);
+
+    /**
+     * Notifica que la contraseña fue cambiada exitosamente.
+     * Llama a {@code POST /api/v1/emails/auth/password-changed}.
+     *
+     * @param user     usuario cuya contraseña cambió
+     * @param ipOrigen IP desde la que se realizó el cambio (puede ser null)
+     */
+    void notificarPasswordCambiado(User user, String ipOrigen);
+
+    /**
+     * Notifica al usuario que su cuenta fue suspendida.
+     * Llama a {@code POST /api/v1/emails/moderation/account-suspended}.
+     *
+     * @param user             usuario suspendido
+     * @param motivoSuspension motivo de la suspensión
+     * @param numeroContrato   número de contrato del administrador que suspende
+     */
+    void notificarCuentaSuspendida(User user, String motivoSuspension, Integer numeroContrato);
+
+    /**
+     * PENDIENTE: el mail service no tiene endpoint de recuperación de contraseña.
+     * Opera como stub hasta que Python agregue el endpoint.
+     *
+     * @param destinatario  correo del usuario
+     * @param token         token UUID de recuperación
      * @param nombreUsuario nombre para personalizar el correo
      */
     void enviarCorreoRecuperacion(String destinatario, String token, String nombreUsuario);
-
-    /**
-     * Solicita al backend Python que envíe el código 2FA al usuario.
-     *
-     * @param destinatario correo del usuario
-     * @param codigo       código numérico de 6 dígitos
-     */
-    void enviarCodigo2FA(String destinatario, String codigo);
 }

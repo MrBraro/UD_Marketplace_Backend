@@ -55,4 +55,11 @@ public class PqrDto {
 
     /** Historial de interacciones/mensajes ordenado cronológicamente (REQ-14). */
     private List<InteraccionDto> interacciones;
+
+    /**
+     * Radicado externo asignado por el report service Python.
+     * Permite al usuario hacer seguimiento desde un sistema externo.
+     * Es null si el report service no estaba disponible al crear la PQR.
+     */
+    private String radicadoExterno;
 }
