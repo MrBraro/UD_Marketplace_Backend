@@ -3,6 +3,7 @@ package com.udmarketplace.auth.config;
 import com.udmarketplace.auth.security.JwtFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,8 +18,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Configuración central de Spring Security para el sistema UD Marketplace.
@@ -27,6 +33,10 @@ import java.time.LocalDateTime;
  * <ul>
  *   <li>Sesiones <b>stateless</b> (JWT, sin HttpSession)</li>
  *   <li>CSRF deshabilitado (no aplica a APIs REST sin formularios)</li>
+ *   <li>Seguridad a nivel de método habilitada con {@link EnableMethodSecurity},
+ *       permitiendo el uso de {@code @PreAuthorize}</li>
+ *   <li>Exposición del bean {@link PasswordEncoder} usando BCrypt para hash seguro
+ *       de contraseñas, evitando almacenamiento en texto plano</li>
  *   <li>RBAC mediante {@code @PreAuthorize} habilitado con {@code @EnableMethodSecurity}</li>
  *   <li>Endpoints públicos: login, 2FA, recuperación de contraseña, catálogo y valoraciones</li>
  *   <li>Prefijos de ruta protegidos por rol: {@code /api/admin/**}, {@code /api/seller/**}, {@code /api/buyer/**}</li>
@@ -36,7 +46,7 @@ import java.time.LocalDateTime;
  * <p>El {@link JwtFilter} se inserta antes de {@link UsernamePasswordAuthenticationFilter}
  * para validar el token en cada solicitud protegida.
  *
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Configuration
@@ -48,8 +58,17 @@ public class SecurityConfig {
     /** Filtro JWT que valida el token en cada solicitud entrante. */
     private final JwtFilter jwtFilter;
 
+    /** Orígenes permitidos para CORS (frontend y backend Python). Configurable por entorno. */
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5000,http://localhost:5173}")
+    private String allowedOriginsRaw;
+
     /**
      * Define la cadena de filtros de seguridad con las reglas de autorización por rol y endpoint.
+     *
+     * <p>Se permite acceso público a los endpoints de autenticación inicial,
+     * registro, recuperación de contraseña, catálogo y valoraciones. El resto
+     * de endpoints requiere autenticación, y algunos prefijos además exigen
+     * un rol específico.
      *
      * @param http builder de configuración de seguridad HTTP
      * @return cadena de filtros de seguridad configurada
@@ -58,20 +77,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
+                            "/api/auth/register",
                             "/api/auth/login",
                             "/api/auth/verifyTwoFactor",
                             "/api/auth/recuperar-password",
                             "/api/auth/reset-password"
                     ).permitAll()
 
-                    // Endpoints públicos de catálogo y valoraciones
+                    // Swagger UI y OpenAPI docs
                     .requestMatchers(
+                            "/swagger-ui.html",
+                            "/swagger-ui/**",
+                            "/v3/api-docs/**"
+                    ).permitAll()
+
+                    // Endpoints públicos de catálogo y valoraciones
+                    .requestMatchers(HttpMethod.GET,
                             "/api/categorias",
                             "/api/categorias/**",
                             "/api/productos",
@@ -112,6 +140,25 @@ public class SecurityConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Configura CORS para permitir peticiones desde el frontend y el backend Python.
+     * Los orígenes se configuran mediante {@code app.cors.allowed-origins}.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        List<String> origins = List.of(allowedOriginsRaw.split(","));
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     /**

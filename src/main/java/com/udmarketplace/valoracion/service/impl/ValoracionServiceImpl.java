@@ -4,9 +4,8 @@
  * <p>Gestiona el ciclo completo de una valoración:
  * <ol>
  *   <li>Valida que la orden sea de compra confirmada y pertenezca al comprador (REQ).</li>
- *   <li>Si existe una valoración activa previa del mismo comprador y producto, la inactiva
- *       conservando el historial sin sobrescribir (REQ-17).</li>
- *   <li>Crea la nueva valoración registrando la relación comprador-vendedor (REQ-18).</li>
+ *   <li>Impide registrar más de una valoración para la misma compra (unicidad por orden).</li>
+ *   <li>Crea la valoración registrando la relación comprador-vendedor (REQ-18).</li>
  *   <li>Recalcula y persiste automáticamente la reputación del vendedor (REQ-16).</li>
  * </ol>
  *
@@ -66,8 +65,12 @@ public class ValoracionServiceImpl implements ValoracionService {
     @Override
     @Transactional
     public ValoracionDto registrarValoracion(CrearValoracionRequest request, Long codigoComprador) {
-        Comprador comprador = (Comprador) userRepository.findById(codigoComprador)
+        com.udmarketplace.auth.model.User usuarioBase = userRepository.findById(codigoComprador)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Comprador no encontrado"));
+        if (!(usuarioBase instanceof Comprador)) {
+            throw new com.udmarketplace.auth.exception.OperacionNoPermitidaException("El usuario no tiene rol de Comprador");
+        }
+        Comprador comprador = (Comprador) usuarioBase;
 
         Producto producto = productoRepository.findById(request.getIdPub())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
@@ -82,16 +85,8 @@ public class ValoracionServiceImpl implements ValoracionService {
             throw new OperacionNoPermitidaException("Solo se puede valorar un producto que haya comprado en una transacción confirmada");
         }
 
-        // REQ-17: impedir duplicar valoración activa
-        if (valoracionRepository.existsByComprador_CodigoUsuaAndProducto_IdPubAndEstadoValoTrue(
-                codigoComprador, request.getIdPub())) {
-            // Inactivar la valoración anterior antes de crear una nueva (historial sin sobrescritura)
-            valoracionRepository.findByComprador_CodigoUsuaAndProducto_IdPub(codigoComprador, request.getIdPub())
-                    .stream().filter(Valoracion::isEstadoValo)
-                    .forEach(v -> {
-                        v.setEstadoValo(false);
-                        valoracionRepository.save(v);
-                    });
+        if (valoracionRepository.existsByOrden_IdOrden(request.getIdOrden())) {
+            throw new OperacionNoPermitidaException("Ya existe una valoración registrada para esta compra");
         }
 
         ResenaPredefinida resena = null;
@@ -128,13 +123,17 @@ public class ValoracionServiceImpl implements ValoracionService {
     /** {@inheritDoc} */
     @Override
     public ReputacionVendedorDto obtenerReputacionVendedor(Long codigoVendedor) {
-        Vendedor vendedor = (Vendedor) userRepository.findById(codigoVendedor)
+        com.udmarketplace.auth.model.User usuarioBase = userRepository.findById(codigoVendedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Vendedor no encontrado"));
+        if (!(usuarioBase instanceof Vendedor)) {
+            throw new com.udmarketplace.auth.exception.OperacionNoPermitidaException("El usuario no tiene rol de Vendedor");
+        }
+        Vendedor vendedor = (Vendedor) usuarioBase;
 
         Double promedio = valoracionRepository.calcularReputacionVendedor(codigoVendedor);
         // REQ-19: reseñas positivas (calificación >= 4)
         long positivas = valoracionRepository.contarResenasPositivas(codigoVendedor);
-        long total = valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(codigoVendedor).size();
+        long total = valoracionRepository.contarValoracionesActivasVendedor(codigoVendedor);
 
         return ReputacionVendedorDto.builder()
                 .idVendedor(codigoVendedor)

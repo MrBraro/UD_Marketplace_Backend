@@ -5,6 +5,8 @@ import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
+import com.udmarketplace.auth.dto.RegisterRequest;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface AuthService {
 

@@ -2,9 +2,11 @@ package com.udmarketplace.transaccion.service.impl;
 
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
+import com.udmarketplace.auth.model.AccionAuditoria;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.UserRepository;
+import com.udmarketplace.auth.service.AuditService;
 import com.udmarketplace.catalogo.model.Producto;
 import com.udmarketplace.catalogo.repository.ProductoRepository;
 import com.udmarketplace.transaccion.dto.CrearTransaccionRequest;
@@ -138,6 +140,17 @@ public class TransaccionServiceImpl implements TransaccionService {
         //  actualizar estado
         orden.setEstadoOrden(EstadoOrden.CONFIRMADA.name());
         ordenRepository.save(orden);
+
+        // Auditoría: registrar cambio de estado de transacción (REQ-06)
+        User vendedor = userRepository.findById(codigoVendedor).orElse(null);
+        auditService.registrar(
+                AccionAuditoria.TRANSACCION_ESTADO_CAMBIADO,
+                "Orden",
+                orden.getIdOrden(),
+                codigoVendedor,
+                vendedor != null ? vendedor.getCorreoUsuario() : "desconocido",
+                "Estado: PENDIENTE → CONFIRMADA"
+        );
 
         // generar orden de entrega automáticamente al confirmar
         // incluir snapshot del producto con sus detalles al momento de la compra

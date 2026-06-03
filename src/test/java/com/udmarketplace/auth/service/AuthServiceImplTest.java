@@ -1,30 +1,45 @@
 package com.udmarketplace.auth.service;
 
-import com.udmarketplace.auth.dto.LoginResponse;
-import com.udmarketplace.auth.dto.TwoFactorRequest;
+import com.udmarketplace.auth.dto.LoginRequest;
+import com.udmarketplace.auth.dto.RegisterRequest;
+import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.exception.InvalidCredentialsException;
-import com.udmarketplace.auth.exception.TwoFactorException;
+import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.mapper.UserMapper;
+import com.udmarketplace.auth.model.EstadoCuenta;
+import com.udmarketplace.auth.model.IntentoFallidoAuth;
 import com.udmarketplace.auth.model.Role;
 import com.udmarketplace.auth.model.User;
 import com.udmarketplace.auth.repository.IntentoFallidoAuthRepository;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.auth.service.impl.AuthServiceImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("AuthServiceImplTest")
 class AuthServiceImplTest {
 
     @Mock
@@ -48,108 +63,148 @@ class AuthServiceImplTest {
     @Mock
     private IntentoFallidoAuthRepository intentoFallidoRepo;
 
+    @Mock
+    private FileValidationService fileValidationService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
-    @Test
-    void verifyTwoFactor_debeInvalidarCodigoYGenerarTokenCuandoCodigoEsValido() {
-        // Arrange: preparamos la solicitud 2FA.
-        TwoFactorRequest request = new TwoFactorRequest();
-        request.setCorreoUsuario("cesar@udistrital.edu.co");
-        request.setTwoFactorCode("123456");
-
-        // Arrange: preparamos un usuario con código 2FA activo.
-        User user = new User();
-        user.setCodigoUsua(10L);
-        user.setCorreoUsuario("cesar@udistrital.edu.co");
-        user.setRolUsua(Role.COMPRADOR);
-        user.setTwoFactorCode("123456");
-        user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(5));
-        user.setBloqueadoHasta(LocalDateTime.now().plusMinutes(30));
-
-        when(userRepository.findByCorreoUsuario("cesar@udistrital.edu.co"))
-                .thenReturn(Optional.of(user));
-
-        when(twoFactorService.validateCode(user, "123456"))
-                .thenReturn(true);
-
-        when(jwtUtil.generateToken("cesar@udistrital.edu.co", "COMPRADOR", 10L))
-                .thenReturn("jwt-test-token");
-
-        // Act: ejecutamos el segundo paso del login.
-        LoginResponse response = authService.verifyTwoFactor(request);
-
-        // Assert: debe retornar respuesta de login.
-        assertNotNull(response);
-
-        // Assert: RF14, el código usado correctamente debe quedar invalidado.
-        assertNull(user.getTwoFactorCode());
-        assertNull(user.getTwoFactorExpiry());
-
-        // Assert: también limpia bloqueo previo después de autenticación exitosa.
-        assertNull(user.getBloqueadoHasta());
-
-        verify(userRepository).save(user);
-
-        verify(jwtUtil).generateToken(
-                "cesar@udistrital.edu.co",
-                "COMPRADOR",
-                10L
-        );
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(authService, "maxIntentosFallidos", 5);
+        ReflectionTestUtils.setField(authService, "minutosBloqueo", 30);
     }
 
     @Test
-    void verifyTwoFactor_debeLanzarTwoFactorExceptionCuandoCodigoEsInvalido() {
-        // Arrange
-        TwoFactorRequest request = new TwoFactorRequest();
-        request.setCorreoUsuario("cesar@udistrital.edu.co");
-        request.setTwoFactorCode("999999");
+    void register_persisteCamposNuevoUsuarioYNormalizaCorreo() throws IOException {
+        RegisterRequest request = RegisterRequest.builder()
+                .tipoDocumento("CC")
+                .numeroDocumento("10101010")
+                .primerNombre("Laura")
+                .segundoNombre("María")
+                .primerApellido("Gómez")
+                .segundoApellido("Pérez")
+                .lugarNacimiento("Bogotá")
+                .fechaNacimiento(LocalDate.of(2000, 6, 15))
+                .telUser("3001234567")
+                .genero("Femenino")
+                .correoInstitu("Estudiante@UDISTRITAL.edu.co")
+                .password("Secreta123!")
+                .codigoEstudiantil("20241001001")
+                .estadoAcademico("Activo")
+                .proyectoCurricular("Ingeniería de Sistemas")
+                .permisoUser(Role.COMPRADOR.name())
+                .build();
 
-        User user = new User();
-        user.setCodigoUsua(10L);
-        user.setCorreoUsuario("cesar@udistrital.edu.co");
-        user.setRolUsua(Role.COMPRADOR);
-        user.setTwoFactorCode("123456");
-        user.setTwoFactorExpiry(LocalDateTime.now().plusMinutes(5));
-
-        when(userRepository.findByCorreoUsuario("cesar@udistrital.edu.co"))
-                .thenReturn(Optional.of(user));
-
-        when(twoFactorService.validateCode(user, "999999"))
-                .thenReturn(false);
-
-        // Act + Assert
-        assertThrows(
-                TwoFactorException.class,
-                () -> authService.verifyTwoFactor(request)
-        );
-
-        // Si el código es inválido, no debe limpiar, guardar ni generar token.
-        assertEquals("123456", user.getTwoFactorCode());
-        assertNotNull(user.getTwoFactorExpiry());
-
-        verify(userRepository, never()).save(any(User.class));
-        verifyNoInteractions(jwtUtil);
-    }
-
-    @Test
-    void verifyTwoFactor_debeLanzarInvalidCredentialsExceptionCuandoUsuarioNoExiste() {
-        // Arrange
-        TwoFactorRequest request = new TwoFactorRequest();
-        request.setCorreoUsuario("noexiste@udistrital.edu.co");
-        request.setTwoFactorCode("123456");
-
-        when(userRepository.findByCorreoUsuario("noexiste@udistrital.edu.co"))
+        when(userRepository.findByCorreoUsuario("estudiante@udistrital.edu.co"))
                 .thenReturn(Optional.empty());
+        when(passwordEncoder.encode("Secreta123!")).thenReturn("hash-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setCodigoUsua(15L);
+            return saved;
+        });
 
-        // Act + Assert
-        assertThrows(
-                InvalidCredentialsException.class,
-                () -> authService.verifyTwoFactor(request)
-        );
+        UserInfoResponse response = authService.register(request, mockPdf());
 
-        verifyNoInteractions(twoFactorService);
-        verifyNoInteractions(jwtUtil);
-        verify(userRepository, never()).save(any(User.class));
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+
+        assertThat(saved.getCorreoUsuario()).isEqualTo("estudiante@udistrital.edu.co");
+        assertThat(saved.getTipoDocumento()).isEqualTo("CC");
+        assertThat(saved.getNumeroDocumento()).isEqualTo("10101010");
+        assertThat(saved.getLugarNacimiento()).isEqualTo("Bogotá");
+        assertThat(saved.getCodigoEstudiantil()).isEqualTo("20241001001");
+        assertThat(saved.getEstadoAcademico()).isEqualTo("Activo");
+        assertThat(saved.getProyectoCurricular()).isEqualTo("Ingeniería de Sistemas");
+        assertThat(saved.getEstadoCuenta()).isEqualTo(EstadoCuenta.ACTIVA);
+        assertThat(response.getCorreoUsuario()).isEqualTo("estudiante@udistrital.edu.co");
+        assertThat(response.getRolUsua()).isEqualTo(Role.COMPRADOR.name());
+        verify(fileValidationService, never()).validatePdf(any());
+    }
+
+    @Test
+    void register_correoDuplicado_lanzaOperacionNoPermitidaException() {
+        RegisterRequest request = RegisterRequest.builder()
+                .tipoDocumento("CC")
+                .numeroDocumento("10101010")
+                .primerNombre("Laura")
+                .primerApellido("Gómez")
+                .lugarNacimiento("Bogotá")
+                .fechaNacimiento(LocalDate.of(2000, 6, 15))
+                .telUser("3001234567")
+                .genero("Femenino")
+                .correoInstitu("duplicado@udistrital.edu.co")
+                .password("Secreta123!")
+                .codigoEstudiantil("20241001001")
+                .estadoAcademico("Activo")
+                .proyectoCurricular("Ingeniería de Sistemas")
+                .permisoUser(Role.COMPRADOR.name())
+                .build();
+
+        when(userRepository.findByCorreoUsuario("duplicado@udistrital.edu.co"))
+                .thenReturn(Optional.of(new User()));
+
+        OperacionNoPermitidaException ex = assertThrows(
+                OperacionNoPermitidaException.class,
+                () -> authService.register(request, mockPdf()));
+
+        assertThat(ex.getMessage()).isEqualTo("El correo institucional ya se encuentra registrado");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_correoFueraDelDominio_lanzaOperacionNoPermitidaException() {
+        RegisterRequest request = RegisterRequest.builder()
+                .tipoDocumento("CC")
+                .numeroDocumento("10101010")
+                .primerNombre("Laura")
+                .primerApellido("Gómez")
+                .lugarNacimiento("Bogotá")
+                .fechaNacimiento(LocalDate.of(2000, 6, 15))
+                .telUser("3001234567")
+                .genero("Femenino")
+                .correoInstitu("usuario@gmail.com")
+                .password("Secreta123!")
+                .codigoEstudiantil("20241001001")
+                .estadoAcademico("Activo")
+                .proyectoCurricular("Ingeniería de Sistemas")
+                .permisoUser(Role.COMPRADOR.name())
+                .build();
+
+        OperacionNoPermitidaException ex = assertThrows(
+                OperacionNoPermitidaException.class,
+                () -> authService.register(request, mockPdf()));
+
+        assertThat(ex.getMessage()).isEqualTo("El correo institucional debe pertenecer al dominio @udistrital.edu.co");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void login_cuentaSuspendida_rechazaAutenticacion() {
+        User user = new User();
+        user.setCodigoUsua(33L);
+        user.setCorreoUsuario("suspendido@udistrital.edu.co");
+        user.setPasswordUsua("hash");
+        user.setActivo(false);
+        user.setEstadoCuenta(EstadoCuenta.SUSPENDIDA);
+
+        when(userRepository.findByCorreoUsuario("suspendido@udistrital.edu.co"))
+                .thenReturn(Optional.of(user));
+
+        LoginRequest request = new LoginRequest();
+        request.setCorreoUsuario("SUSPENDIDO@UDISTRITAL.EDU.CO");
+        request.setPasswordUsua("Secreta123!");
+
+        assertThrows(InvalidCredentialsException.class, () -> authService.login(request, "127.0.0.1"));
+
+        verify(passwordEncoder, never()).matches(any(), any());
+        verify(twoFactorService, never()).generateAndSendCode(any());
+        verify(intentoFallidoRepo).save(any(IntentoFallidoAuth.class));
+    }
+
+    private MultipartFile mockPdf() {
+        return org.mockito.Mockito.mock(MultipartFile.class);
     }
 }

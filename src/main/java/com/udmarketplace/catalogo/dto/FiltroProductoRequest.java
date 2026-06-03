@@ -14,12 +14,15 @@ import java.math.BigDecimal;
  * <ul>
  *   <li>{@code precio_asc}  — precio ascendente</li>
  *   <li>{@code precio_desc} — precio descendente</li>
- *   <li>{@code nombre}      — nombre alfabético ascendente</li>
+ *   <li>{@code nombre_asc}  — nombre alfabético ascendente</li>
+ *   <li>{@code nombre_desc} — nombre alfabético descendente</li>
+ *   <li>{@code fecha_asc}  — fecha de registro ascendente (más antiguos primero)</li>
+ *   <li>{@code fecha_desc}  — fecha de registro descendente (más recientes primero, por defecto)</li>
  *   <li>Cualquier otro valor o null — fecha de registro descendente (más recientes primero)</li>
  * </ul>
  *
  * @author Daniel Perez
- * @version 1.0
+ * @version 1.1
  * @since 2026-05-28
  */
 @Data
@@ -37,7 +40,7 @@ public class FiltroProductoRequest {
     /** Precio máximo del rango de búsqueda (inclusivo). */
     private BigDecimal precioMax;
 
-    /** Calificación promedio mínima del producto (campo de filtro futuro, no implementado en Spec aún). */
+    /** Calificación promedio mínima del producto para filtrar (rango: 0.0 a 5.0). */
     private Double calificacionMin;
 
     /** Texto de búsqueda en la ubicación del producto (búsqueda parcial). */

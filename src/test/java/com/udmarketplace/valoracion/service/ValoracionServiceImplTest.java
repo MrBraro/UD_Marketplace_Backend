@@ -118,8 +118,6 @@ class ValoracionServiceImplTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
         when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
         when(ordenRepository.findById(100L)).thenReturn(Optional.of(orden));
-        when(valoracionRepository.existsByComprador_CodigoUsuaAndProducto_IdPubAndEstadoValoTrue(1L, 10L))
-                .thenReturn(false);
 
         Valoracion guardada = Valoracion.builder()
                 .idVal(1L).comprador(comprador).vendedor(vendedor).producto(producto)
@@ -208,37 +206,22 @@ class ValoracionServiceImplTest {
     }
 
     @Test
-    void registrarValoracion_duplicado_inactivaPreviaYCreaNueva() {
+        void registrarValoracion_duplicado_porMismaCompra_lanzaExcepcion() {
         Comprador comprador = comprador(1L);
         Vendedor vendedor = vendedor(2L);
         Producto producto = producto(10L, vendedor);
         Orden orden = ordenConfirmada(100L, comprador, producto);
 
-        Valoracion previa = Valoracion.builder()
-                .idVal(5L).comprador(comprador).vendedor(vendedor).producto(producto)
-                .calificacion(3).estadoValo(true).build();
-
         when(userRepository.findById(1L)).thenReturn(Optional.of(comprador));
         when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
         when(ordenRepository.findById(100L)).thenReturn(Optional.of(orden));
-        when(valoracionRepository.existsByComprador_CodigoUsuaAndProducto_IdPubAndEstadoValoTrue(1L, 10L))
-                .thenReturn(true);
-        when(valoracionRepository.findByComprador_CodigoUsuaAndProducto_IdPub(1L, 10L))
-                .thenReturn(List.of(previa));
+        when(valoracionRepository.existsByOrden_IdOrden(100L)).thenReturn(true);
 
-        Valoracion nueva = Valoracion.builder()
-                .idVal(6L).comprador(comprador).vendedor(vendedor).producto(producto)
-                .orden(orden).calificacion(5).fechaValo(LocalDate.now()).estadoValo(true).build();
+        assertThatThrownBy(() -> service.registrarValoracion(requestValoracion(10L, 100L, 5), 1L))
+            .isInstanceOf(OperacionNoPermitidaException.class)
+            .hasMessageContaining("Ya existe una valoración");
 
-        when(valoracionRepository.save(any())).thenReturn(nueva);
-        when(valoracionRepository.calcularReputacionVendedor(2L)).thenReturn(5.0);
-        when(userRepository.save(any())).thenReturn(vendedor);
-
-        service.registrarValoracion(requestValoracion(10L, 100L, 5), 1L);
-
-        // La valoración previa debe quedar inactiva (historial sin sobrescritura REQ-17)
-        assertThat(previa.isEstadoValo()).isFalse();
-        verify(valoracionRepository, atLeastOnce()).save(previa);
+        verify(valoracionRepository, never()).save(any());
     }
 
     // ------------------------------------------------------------------ calcularPromedioProducto
@@ -263,8 +246,7 @@ class ValoracionServiceImplTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(vendedor));
         when(valoracionRepository.calcularReputacionVendedor(2L)).thenReturn(4.5);
         when(valoracionRepository.contarResenasPositivas(2L)).thenReturn(3L);
-        when(valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(2L))
-                .thenReturn(List.of(new Valoracion(), new Valoracion(), new Valoracion(), new Valoracion()));
+        when(valoracionRepository.contarValoracionesActivasVendedor(2L)).thenReturn(4L);
 
         ReputacionVendedorDto result = service.obtenerReputacionVendedor(2L);
 
@@ -280,8 +262,7 @@ class ValoracionServiceImplTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(vendedor));
         when(valoracionRepository.calcularReputacionVendedor(2L)).thenReturn(null);
         when(valoracionRepository.contarResenasPositivas(2L)).thenReturn(0L);
-        when(valoracionRepository.findByVendedor_CodigoUsuaAndEstadoValoTrue(2L))
-                .thenReturn(List.of());
+        when(valoracionRepository.contarValoracionesActivasVendedor(2L)).thenReturn(0L);
 
         ReputacionVendedorDto result = service.obtenerReputacionVendedor(2L);
 

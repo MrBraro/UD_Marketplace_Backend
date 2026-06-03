@@ -4,6 +4,7 @@ import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.UserRepository;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.catalogo.dto.CrearProductoRequest;
 import com.udmarketplace.catalogo.dto.FiltroProductoRequest;
 import com.udmarketplace.catalogo.dto.ProductoDto;
@@ -22,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,13 +31,14 @@ import java.util.List;
  *
  * <p>Implementa el ciclo de vida completo de los productos con actualización automática
  * del contador de categorías, búsqueda dinámica mediante JPA Specifications,
- * ordenamiento configurable y soft-delete.
- *
+ * ordenamiento configurable, validación de imágenes (RNF08) y soft-delete.
+
  * <p>Todas las operaciones de escritura están anotadas con {@code @Transactional}
  * para garantizar la reversión ante fallos.
  *
  * @author Daniel Perez
- * @version 1.0
+ * @modified by Maria
+ * @version 1.2
  * @since 2026-05-28
  */
 @Service
@@ -54,10 +57,15 @@ public class ProductoServiceImpl implements ProductoService {
     /** Servicio de categorías para actualizar el contador de productos (REQ-04). */
     private final CategoriaService categoriaService;
 
+    /** Servicio de validación de archivos para validar imágenes (RNF08). */
+    private final FileValidationService fileValidationService;
+
+
     /**
      * {@inheritDoc}
      *
      * <p>Persiste la imagen como BLOB si se provee. Incrementa el contador de la categoría (REQ-04).
+     * Valida que la imagen sea un formato soportado, MIME type correcto y tamaño dentro del límite (RNF08).
      */
     @Override
     @Transactional
@@ -79,6 +87,8 @@ public class ProductoServiceImpl implements ProductoService {
                 .build();
 
         if (imagen != null && !imagen.isEmpty()) {
+            // RNF08: Validar tipo MIME, extensión y tamaño de la imagen
+            fileValidationService.validateImage(imagen);
             try {
                 producto.setImagenPub(imagen.getBytes());
             } catch (IOException e) {
@@ -105,6 +115,48 @@ public class ProductoServiceImpl implements ProductoService {
     /** {@inheritDoc} */
     @Override
     public List<ProductoDto> listarProductosVendedor(Long codigoVendedor, String ordenarPor) {
+        Sort sort = resolverOrden(ordenarPor);
+        return productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(codigoVendedor, sort)
+                .stream().map(this::toDto).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Valida que el vendedor exista antes de buscar sus productos. Si el vendedor no existe,
+     * lanza {@link RecursoNoEncontradoException} que se convierte a HTTP 404 en el controlador.
+     * Si el vendedor existe pero no tiene productos activos, retorna una lista vacía que el
+     * controlador convierte a HTTP 204.
+     *
+     * <p><b>Estrategia de prueba:</b>
+     * <ul>
+     *   <li><b>Pruebas de API:</b>
+     *     <ul>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente con productos → HTTP 200 + lista de productos</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor existente sin productos → HTTP 204</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor} con vendedor inexistente → HTTP 404</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=precio_asc → productos ordenados por precio ascendente</li>
+     *       <li>GET /api/productos/vendedor/{idVendedor}?ordenarPor=nombre → productos ordenados alfabéticamente</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>Pruebas de base de datos:</b>
+     *     <ul>
+     *       <li>Verificar relación Producto.vendedor → Vendedor (ManyToOne)</li>
+     *       <li>Validar integridad referencial: no se pueden crear productos con vendedor inexistente</li>
+     *       <li>Confirmar que solo se retornan productos con activoPub = true</li>
+     *       <li>Verificar que el contador de productos por vendedor es correcto</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     *
+     * @author Andrés Cerdas
+     * @since 2026-06-01
+     */
+    @Override
+    public List<ProductoDto> obtenerProductosPorVendedor(Long codigoVendedor, String ordenarPor) {
+        // Validar que el vendedor existe antes de buscar productos
+        obtenerVendedor(codigoVendedor);
+        
         Sort sort = resolverOrden(ordenarPor);
         return productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(codigoVendedor, sort)
                 .stream().map(this::toDto).toList();
@@ -143,6 +195,8 @@ public class ProductoServiceImpl implements ProductoService {
         producto.setCategoria(nuevaCategoria);
 
         if (imagen != null && !imagen.isEmpty()) {
+            // RNF08: Validar tipo MIME, extensión y tamaño de la imagen
+            fileValidationService.validateImage(imagen);
             try {
                 producto.setImagenPub(imagen.getBytes());
             } catch (IOException e) {
@@ -188,8 +242,12 @@ public class ProductoServiceImpl implements ProductoService {
      * @return entidad Vendedor
      */
     private Vendedor obtenerVendedor(Long codigoVendedor) {
-        return (Vendedor) userRepository.findById(codigoVendedor)
+        com.udmarketplace.auth.model.User user = userRepository.findById(codigoVendedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Vendedor no encontrado"));
+        if (!(user instanceof Vendedor)) {
+            throw new OperacionNoPermitidaException("El usuario no tiene rol de Vendedor");
+        }
+        return (Vendedor) user;
     }
 
     /**
@@ -230,22 +288,43 @@ public class ProductoServiceImpl implements ProductoService {
     }
 
     /**
-     * Resuelve el criterio de ordenamiento textual a un objeto {@link Sort} de Spring Data.
-     * Valores soportados: {@code precio_asc}, {@code precio_desc}, {@code nombre}.
-     * Cualquier otro valor o {@code null} usa ordenamiento por fecha descendente.
-     *
-     * @param criterio criterio de ordenamiento recibido como parámetro de consulta
-     * @return objeto Sort configurado para la consulta
-     */
-    private Sort resolverOrden(String criterio) {
-        if (criterio == null) return Sort.by(Sort.Direction.DESC, "fechaRegistro");
-        return switch (criterio.toLowerCase()) {
-            case "precio_asc"  -> Sort.by(Sort.Direction.ASC,  "precioPub");
-            case "precio_desc" -> Sort.by(Sort.Direction.DESC, "precioPub");
-            case "nombre"      -> Sort.by(Sort.Direction.ASC,  "nombrePub");
-            default            -> Sort.by(Sort.Direction.DESC, "fechaRegistro");
-        };
+ * Resuelve el criterio de ordenamiento solicitado a una instancia de {@link Sort}.
+ *
+ * <p>Criterios soportados:
+ * <ul>
+ *   <li>{@code precio_asc} — precio ascendente</li>
+ *   <li>{@code precio_desc} — precio descendente</li>
+ *   <li>{@code nombre_asc} — nombre alfabético ascendente</li>
+ *   <li>{@code nombre_desc} — nombre alfabético descendente</li>
+ *   <li>{@code fecha_asc} — fecha de registro ascendente (más antiguos primero)</li>
+ *   <li>{@code fecha_desc} — fecha de registro descendente (más recientes primero, por defecto)</li>
+ * </ul>
+ *
+ * @param criterio texto de ordenamiento recibido
+ * @return criterio de ordenamiento aplicado
+ */
+private Sort resolverOrden(String criterio) {
+    if (criterio == null) {
+        return Sort.by(Sort.Direction.DESC, "fechaRegistro");
     }
+
+    switch (criterio.toLowerCase()) {
+        case "precio_asc":
+            return Sort.by(Sort.Direction.ASC, "precioPub");
+        case "precio_desc":
+            return Sort.by(Sort.Direction.DESC, "precioPub");
+        case "nombre_asc":
+        case "nombre":
+            return Sort.by(Sort.Direction.ASC, "nombrePub");
+        case "nombre_desc":
+            return Sort.by(Sort.Direction.DESC, "nombrePub");
+        case "fecha_asc":
+            return Sort.by(Sort.Direction.ASC, "fechaRegistro");
+        case "fecha_desc":
+        default:
+            return Sort.by(Sort.Direction.DESC, "fechaRegistro");
+    }
+}
 
     /**
      * Construye una especificación JPA dinámica a partir de los filtros de búsqueda.
@@ -257,7 +336,8 @@ public class ProductoServiceImpl implements ProductoService {
      */
     private Specification<Producto> construirFiltro(FiltroProductoRequest f) {
         return (root, query, cb) -> {
-            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+
             predicates.add(cb.isTrue(root.get("activoPub")));
             if (f.getNombre() != null && !f.getNombre().isBlank())
                 predicates.add(cb.like(cb.lower(root.get("nombrePub")), "%" + f.getNombre().toLowerCase() + "%"));
@@ -271,6 +351,19 @@ public class ProductoServiceImpl implements ProductoService {
                 predicates.add(cb.like(cb.lower(root.get("ubicacion")), "%" + f.getUbicacion().toLowerCase() + "%"));
             if (f.getDisponibilidad() != null)
                 predicates.add(cb.equal(root.get("disponibilidad"), f.getDisponibilidad()));
+            
+            // Filtro de calificación mínima usando subquery
+            if (f.getCalificacionMin() != null) {
+                jakarta.persistence.criteria.Subquery<Double> subquery = query.subquery(Double.class);
+                jakarta.persistence.criteria.Root<com.udmarketplace.valoracion.model.Valoracion> valoracionRoot = subquery.from(com.udmarketplace.valoracion.model.Valoracion.class);
+                
+                subquery.select(cb.avg(valoracionRoot.get("calificacion")))
+                        .where(cb.equal(valoracionRoot.get("producto").get("idPub"), root.get("idPub")),
+                                cb.isTrue(valoracionRoot.get("estadoValo")));
+                
+                predicates.add(cb.greaterThanOrEqualTo(subquery, f.getCalificacionMin()));
+            }
+            
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
@@ -283,6 +376,7 @@ public class ProductoServiceImpl implements ProductoService {
      * @return DTO con los datos del producto
      */
     private ProductoDto toDto(Producto p) {
+         String nombreVendedor = p.getVendedor().getPrimerNombre() + " " + p.getVendedor().getPrimerApellido();
         return ProductoDto.builder()
                 .idPub(p.getIdPub())
                 .nombrePub(p.getNombrePub())

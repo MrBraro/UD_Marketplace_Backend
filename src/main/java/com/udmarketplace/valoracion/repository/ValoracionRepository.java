@@ -51,6 +51,14 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
     boolean existsByComprador_CodigoUsuaAndProducto_IdPubAndEstadoValoTrue(Long codigoComprador, Long idPub);
 
     /**
+     * Verifica si ya existe una valoración asociada a una compra concreta.
+     *
+     * @param idOrden identificador de la orden de compra
+     * @return {@code true} si ya hay una valoración registrada para la compra
+     */
+    boolean existsByOrden_IdOrden(Long idOrden);
+
+    /**
      * Calcula la calificación promedio de un producto a partir de sus valoraciones activas .
      *
      * @param idPub identificador del producto
@@ -86,4 +94,14 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
      * @return lista de valoraciones del comprador para el producto (activas e inactivas)
      */
     List<Valoracion> findByComprador_CodigoUsuaAndProducto_IdPub(Long codigoComprador, Long idPub);
+
+    /**
+     * Cuenta las valoraciones activas de un vendedor usando una query de base de datos
+     * en lugar de cargar todas las entidades en memoria.
+     *
+     * @param codigoVendedor identificador del vendedor
+     * @return total de valoraciones activas del vendedor
+     */
+    @Query("SELECT COUNT(v) FROM Valoracion v WHERE v.vendedor.codigoUsua = :codigoVendedor AND v.estadoValo = true")
+    long contarValoracionesActivasVendedor(@Param("codigoVendedor") Long codigoVendedor);
 }

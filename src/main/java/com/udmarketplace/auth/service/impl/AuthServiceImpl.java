@@ -3,18 +3,26 @@ package com.udmarketplace.auth.service.impl;
 import com.udmarketplace.auth.dto.LoginRequest;
 import com.udmarketplace.auth.dto.LoginResponse;
 import com.udmarketplace.auth.dto.LoginStepResponse;
+import com.udmarketplace.auth.dto.RegisterRequest;
 import com.udmarketplace.auth.dto.TwoFactorRequest;
 import com.udmarketplace.auth.dto.UserInfoResponse;
 import com.udmarketplace.auth.exception.AccountBlockedException;
 import com.udmarketplace.auth.exception.InvalidCredentialsException;
+import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.TwoFactorException;
 import com.udmarketplace.auth.mapper.UserMapper;
+import com.udmarketplace.auth.model.Administrador;
+import com.udmarketplace.auth.model.Comprador;
+import com.udmarketplace.auth.model.EstadoCuenta;
 import com.udmarketplace.auth.model.IntentoFallidoAuth;
 import com.udmarketplace.auth.model.User;
+import com.udmarketplace.auth.model.Role;
+import com.udmarketplace.auth.model.Vendedor;
 import com.udmarketplace.auth.repository.IntentoFallidoAuthRepository;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.auth.security.JwtUtil;
 import com.udmarketplace.auth.service.AuthService;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.auth.service.TokenBlacklistService;
 import com.udmarketplace.auth.service.TwoFactorService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final UserMapper userMapper;
     private final IntentoFallidoAuthRepository intentoFallidoRepo;
+    private final FileValidationService fileValidationService;
 
     @Value("${app.auth.max-intentos-fallidos:5}")
     private int maxIntentosFallidos;
@@ -117,6 +126,7 @@ public class AuthServiceImpl implements AuthService {
     private void registrarIntento(String correo, String ip, boolean exitoso) {
         intentoFallidoRepo.save(IntentoFallidoAuth.builder()
                 .correoIntentado(correo)
+                .codigoUsuario(codigoUsuario)
                 .ipOrigen(ip)
                 .fechaHora(LocalDateTime.now())
                 .exitoso(exitoso)
@@ -131,6 +141,40 @@ public class AuthServiceImpl implements AuthService {
             user.setBloqueadoHasta(LocalDateTime.now().plusMinutes(minutosBloqueo));
             userRepository.save(user);
             log.warn("Cuenta '{}' bloqueada hasta {}", correo, user.getBloqueadoHasta());
+        }
+    }
+
+    /**
+     * Valida si la cuenta del usuario está habilitada para autenticarse.
+     *
+     * @param user usuario recuperado de base de datos
+     * @return {@code true} si la cuenta está activa y no fue suspendida ni deshabilitada
+     */
+    private boolean estaCuentaHabilitada(User user) {
+        EstadoCuenta estadoCuenta = user.getEstadoCuenta();
+        boolean estadoActivo = estadoCuenta == null || estadoCuenta == EstadoCuenta.ACTIVA;
+        return user.isActivo() && estadoActivo;
+    }
+
+    /**
+     * Normaliza el correo institucional a minúsculas y sin espacios extremos.
+     *
+     * @param correo valor recibido en el request
+     * @return correo normalizado
+     */
+    private String normalizarCorreoInstitucional(String correo) {
+        return correo != null ? correo.trim().toLowerCase(Locale.ROOT) : null;
+    }
+
+    /**
+     * Verifica que el correo pertenezca al dominio institucional permitido.
+     *
+     * @param correoInstitucional correo normalizado
+     */
+    private void validarDominioCorreo(String correoInstitucional) {
+        if (correoInstitucional == null || !correoInstitucional.endsWith("@udistrital.edu.co")) {
+            throw new OperacionNoPermitidaException(
+                    "El correo institucional debe pertenecer al dominio @udistrital.edu.co");
         }
     }
 }

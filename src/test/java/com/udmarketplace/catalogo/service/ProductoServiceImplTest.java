@@ -3,6 +3,7 @@
  * Cubre registro, consulta, actualización, eliminación lógica y búsqueda con filtros.
  *
  * @author Daniel Perez
+ * @modified by Maria Velez
  * @version 1.0
  * @since 2026-05-28
  */
@@ -11,6 +12,7 @@ package com.udmarketplace.catalogo.service;
 import com.udmarketplace.auth.exception.OperacionNoPermitidaException;
 import com.udmarketplace.auth.exception.RecursoNoEncontradoException;
 import com.udmarketplace.auth.model.Vendedor;
+import com.udmarketplace.auth.service.FileValidationService;
 import com.udmarketplace.auth.repository.UserRepository;
 import com.udmarketplace.catalogo.dto.CrearProductoRequest;
 import com.udmarketplace.catalogo.dto.FiltroProductoRequest;
@@ -27,11 +29,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -40,6 +44,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ProductoServiceImplTest {
 
+    @Mock
+    private FileValidationService fileValidationService;
     @Mock
     private ProductoRepository productoRepository;
     @Mock
@@ -307,5 +313,164 @@ class ProductoServiceImplTest {
         when(productoRepository.findById(anyLong())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.eliminarProducto(99L, 1L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
+    }
+
+    // ------------------------------------------------------------------ obtenerProductosPorVendedor
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorExistenteConProductos_retornaLista() {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        List<Producto> productos = List.of(
+                productoActivo(1L, vendedor, categoria),
+                productoActivo(2L, vendedor, categoria)
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(productos);
+
+        List<ProductoDto> result = service.obtenerProductosPorVendedor(1L, null);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getIdVendedor()).isEqualTo(1L);
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorExistenteSinProductos_retornaListaVacia() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        List<ProductoDto> result = service.obtenerProductosPorVendedor(1L, null);
+
+        assertThat(result).isEmpty();
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_vendedorNoExiste_lanzaExcepcion() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.obtenerProductosPorVendedor(99L, null))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Vendedor no encontrado");
+        verify(productoRepository, never()).findByVendedor_CodigoUsuaAndActivoPubTrue(anyLong(), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenPrecioAsc_aplicaOrdenamiento() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, "precio_asc");
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenNombre_aplicaOrdenamiento() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, "nombre");
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
+    @Test
+    void obtenerProductosPorVendedor_ordenPorDefecto_fechaDesc() {
+        Vendedor vendedor = vendedor(1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(productoRepository.findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class)))
+                .thenReturn(List.of());
+
+        service.obtenerProductosPorVendedor(1L, null);
+
+        verify(productoRepository).findByVendedor_CodigoUsuaAndActivoPubTrue(eq(1L), any(Sort.class));
+    }
+
+    @Test
+    void registrarProducto_conImagenValida_guardaImagenYValidaArchivo() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto guardado = productoActivo(10L, vendedor, categoria);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getBytes()).thenReturn("abc".getBytes());
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(guardado);
+
+        ProductoDto result = service.registrarProducto(request(2L), imagen, 1L);
+
+        assertThat(result.getIdPub()).isEqualTo(10L);
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository).save(any(Producto.class));
+        verify(categoriaService).incrementarContador(2L);
+    }
+    @Test
+    void registrarProducto_imagenBytesFalla_lanzaExcepcion() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getBytes()).thenThrow(new IOException("boom"));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+
+        assertThatThrownBy(() -> service.registrarProducto(request(2L), imagen, 1L))
+                .isInstanceOf(OperacionNoPermitidaException.class)
+                .hasMessage("Error al procesar la imagen");
+
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository, never()).save(any());
+    }
+    @Test
+    void actualizarProducto_conImagenValida_reemplazaImagen() throws Exception {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto producto = productoActivo(10L, vendedor, categoria);
+
+        MultipartFile imagen = mock(MultipartFile.class);
+        when(imagen.isEmpty()).thenReturn(false);
+        when(imagen.getBytes()).thenReturn("xyz".getBytes());
+
+        when(productoRepository.findById(10L)).thenReturn(Optional.of(producto));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(producto);
+
+        service.actualizarProducto(10L, request(2L), imagen, 1L);
+
+        verify(fileValidationService).validateImage(imagen);
+        verify(productoRepository).save(producto);
+    }
+    @Test
+    void registrarProducto_sinImagen_noValidaArchivo() {
+        Vendedor vendedor = vendedor(1L);
+        Categoria categoria = categoriaActiva(2L);
+        Producto guardado = productoActivo(10L, vendedor, categoria);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(categoria));
+        when(productoRepository.save(any())).thenReturn(guardado);
+
+        service.registrarProducto(request(2L), null, 1L);
+
+        verify(fileValidationService, never()).validateImage(any());
     }
 }
