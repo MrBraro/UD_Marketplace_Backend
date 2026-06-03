@@ -91,6 +91,13 @@ public class SecurityConfig {
                             "/api/auth/reset-password"
                     ).permitAll()
 
+                    // Actuator health check and endpoints
+                    .requestMatchers(
+                            "/actuator/health",
+                            "/actuator",
+                            "/actuator/**"
+                    ).permitAll()
+
                     // Swagger UI y OpenAPI docs
                     .requestMatchers(
                             "/swagger-ui.html",

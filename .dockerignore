@@ -1,0 +1,32 @@
+# Ignore Maven build artifacts
+target/
+*.jar
+*.war
+*.ear
+*.zip
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.classpath
+.project
+.settings/
+
+# Ignore version control
+.git/
+.gitignore
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore environmental configs
+.env
+.env.*
+
+# Ignore old docker folder
+Enviado por el grupo 2/

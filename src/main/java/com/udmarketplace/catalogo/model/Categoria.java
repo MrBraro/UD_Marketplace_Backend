@@ -37,15 +37,21 @@ public class Categoria {
     private String nombreCat;
 
     /** Indica si la categoría está activa. {@code false} representa eliminación lógica. */
-    @Column(name = "activo_cat")
-    private boolean activoCat = true;
+    @Builder.Default
+    @Column(name = "activo_cat", columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean activoCat = true;
+
+    public boolean isActivoCat() {
+        return activoCat != null && activoCat;
+    }
 
     /** Descripción opcional de la categoría (máximo 500 caracteres). */
     @Column(name = "descripcion_cat", length = 500)
     private String descripcionCat;
 
     /** Contador de publicaciones activas asociadas a esta categoría. */
-    @Column(name = "contador_productos")
+    @Builder.Default
+    @Column(name = "contador_productos", columnDefinition = "INT DEFAULT 0")
     private int contadorProductos = 0;
 
     /** Administrador responsable de la creación o gestión de la categoría. */

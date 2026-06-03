@@ -376,7 +376,30 @@ private Sort resolverOrden(String criterio) {
      * @return DTO con los datos del producto
      */
     private ProductoDto toDto(Producto p) {
-         String nombreVendedor = p.getVendedor().getPrimerNombre() + " " + p.getVendedor().getPrimerApellido();
+        Long idVendedor = null;
+        String nombreVendedor = "Usuario Desconocido";
+        try {
+            if (p.getVendedor() != null) {
+                idVendedor = p.getVendedor().getCodigoUsua();
+                String primer = p.getVendedor().getPrimerNombre();
+                String apellido = p.getVendedor().getPrimerApellido();
+                nombreVendedor = ((primer != null ? primer : "") + " " + (apellido != null ? apellido : "")).trim();
+            }
+        } catch (Exception e) {
+            // Maneja proxies huérfanos o registros eliminados en BD
+        }
+
+        Long idCategoria = null;
+        String nombreCategoria = "Categoría Desconocida";
+        try {
+            if (p.getCategoria() != null) {
+                idCategoria = p.getCategoria().getIdCategoria();
+                nombreCategoria = p.getCategoria().getNombreCat();
+            }
+        } catch (Exception e) {
+            // Maneja proxies huérfanos o registros eliminados en BD
+        }
+
         return ProductoDto.builder()
                 .idPub(p.getIdPub())
                 .nombrePub(p.getNombrePub())
@@ -387,10 +410,10 @@ private Sort resolverOrden(String criterio) {
                 .disponibilidad(p.isDisponibilidad())
                 .activoPub(p.isActivoPub())
                 .fechaRegistro(p.getFechaRegistro())
-                .idCategoria(p.getCategoria() != null ? p.getCategoria().getIdCategoria() : null)
-                .nombreCategoria(p.getCategoria() != null ? p.getCategoria().getNombreCat() : null)
-                .idVendedor(p.getVendedor().getCodigoUsua())
-                .nombreVendedor(p.getVendedor().getPrimerNombre() + " " + p.getVendedor().getPrimerApellido())
+                .idCategoria(idCategoria)
+                .nombreCategoria(nombreCategoria)
+                .idVendedor(idVendedor)
+                .nombreVendedor(nombreVendedor)
                 .build();
     }
 }

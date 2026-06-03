@@ -57,7 +57,12 @@ public class Valoracion {
      * REQ-17).
      */
     @Column(name = "estado_valo")
-    private boolean estadoValo = true;
+    @Builder.Default
+    private Boolean estadoValo = true;
+
+    public boolean isEstadoValo() {
+        return estadoValo != null && estadoValo;
+    }
 
     /** Orden de compra confirmada que origina esta valoración . */
     @ManyToOne(fetch = FetchType.LAZY)

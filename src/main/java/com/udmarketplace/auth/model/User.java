@@ -85,8 +85,13 @@ public class User {
     private String correoUsuario;
 
     /** Indica si la cuenta está habilitada para operar en el marketplace. */
-    @Column(name = "activo", nullable = false)
-    private boolean activo;
+    @Column(name = "activo")
+    @Builder.Default
+    private Boolean activo = true;
+
+    public boolean isActivo() {
+        return activo != null && activo;
+    }
 
     /** Estado administrativo de la cuenta. */
     @Builder.Default
